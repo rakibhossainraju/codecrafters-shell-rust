@@ -49,5 +49,4 @@ fn execute_echo(args: &[String]) {
         .map(|s| s.to_string() + " ")
         .collect::<String>();
     println!("{}", args);
-
 }
