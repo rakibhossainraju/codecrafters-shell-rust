@@ -5,9 +5,12 @@ fn main() {
     loop {
         // Display the prompt and ensure it appears immediately before waiting for input
         print_initial_prompt();
-
         // Read user input and trim trailing whitespace
         let user_command = read_user_command();
+        match user_command.as_str() {
+            "exit" => break,
+            _ => {}   
+        }
         println!("{}: command not found", user_command);
     }
 }
