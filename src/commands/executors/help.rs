@@ -5,5 +5,6 @@ pub fn execute_help() {
     println!("  echo     - Print text to stdout");
     println!("  type     - Show information about a command");
     println!("  help     - Show this help message");
+    println!("  clear    - Clears screen clearing memory");
 }
 
