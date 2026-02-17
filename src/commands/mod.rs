@@ -18,6 +18,9 @@ impl Command {
             Command::Builtin(BuiltinCommands::Exit) => {
                 // Exit is handled in main loop, but included for completeness
             }
+            Command::Builtin(BuiltinCommands::Cd) => {
+                executors::cd::execute_cd(args);
+            }
             Command::Builtin(BuiltinCommands::Clear) => {
                 executors::clear::execute_clear();
             }

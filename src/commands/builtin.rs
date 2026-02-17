@@ -7,6 +7,7 @@ pub enum BuiltinCommands {
     Help,
     Type,
     Pwd,
+    Cd,
 }
 
 impl BuiltinCommands {
@@ -18,6 +19,7 @@ impl BuiltinCommands {
             "help" => Some(BuiltinCommands::Help),
             "type" => Some(BuiltinCommands::Type),
             "pwd" => Some(BuiltinCommands::Pwd),
+            "cd" => Some(BuiltinCommands::Cd),
             _ => None,
         }
     }
@@ -30,6 +32,7 @@ impl BuiltinCommands {
 impl Display for BuiltinCommands {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            BuiltinCommands::Cd => write!(f, "cd"),
             BuiltinCommands::Clear => write!(f, "clear"),
             BuiltinCommands::Exit => write!(f, "exit"),
             BuiltinCommands::Echo => write!(f, "echo"),
