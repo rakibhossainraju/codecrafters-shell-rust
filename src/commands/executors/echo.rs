@@ -6,4 +6,3 @@ pub fn execute_echo(args: &[String]) {
         println!("{}", args.join(" "));
     }
 }
-

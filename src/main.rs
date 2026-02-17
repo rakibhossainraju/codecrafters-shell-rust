@@ -1,8 +1,9 @@
 mod commands;
+mod utils;
 
+use commands::{BuiltinCommands, Command};
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use commands::{Command, BuiltinCommands};
 
 fn main() {
     loop {

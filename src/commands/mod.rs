@@ -1,13 +1,13 @@
 mod builtin;
-mod external;
 mod executors;
+mod external;
 
 pub use builtin::BuiltinCommands;
-
+pub use external::ExternalCommand;
 
 pub enum Command {
     Builtin(BuiltinCommands),
-    External(String),
+    External(ExternalCommand),
 }
 
 impl Command {
@@ -19,6 +19,9 @@ impl Command {
             Command::Builtin(BuiltinCommands::Clear) => {
                 executors::clear::execute_clear();
             }
+            Command::External(_name) => {
+                //TODO: handle external commands
+            }
             Command::Builtin(BuiltinCommands::Echo) => {
                 executors::echo::execute_echo(args);
             }
@@ -28,9 +31,6 @@ impl Command {
             Command::Builtin(BuiltinCommands::Type) => {
                 executors::command_type::execute_type(args);
             }
-            Command::External(name) => {
-                external::execute_external(name, args);
-            }
         }
     }
 }
@@ -39,8 +39,7 @@ impl From<&str> for Command {
     fn from(s: &str) -> Self {
         match BuiltinCommands::from_str(s) {
             Some(builtin) => Command::Builtin(builtin),
-            None => Command::External(s.to_string()),
+            None => Command::External(ExternalCommand::new(s.to_string())),
         }
     }
 }
-

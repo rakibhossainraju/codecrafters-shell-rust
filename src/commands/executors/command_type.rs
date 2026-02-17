@@ -1,4 +1,4 @@
-use crate::commands::BuiltinCommands;
+use crate::commands::{BuiltinCommands, ExternalCommand};
 
 /// Execute the type builtin command
 /// Shows information about a command (builtin or external)
@@ -12,8 +12,11 @@ pub fn execute_type(args: &[String]) {
         if BuiltinCommands::is_builtin_command(arg) {
             println!("{} is a shell builtin", arg);
         } else {
-            println!("{}: not found", arg);
+            if let Some(cmd) = ExternalCommand::resolve(arg) {
+                println!("{} is {}", cmd.name, cmd.path.unwrap());
+            } else {
+                println!("{}: not found", arg);
+            }
         }
     }
 }
-
