@@ -19,8 +19,8 @@ impl Command {
             Command::Builtin(BuiltinCommands::Clear) => {
                 executors::clear::execute_clear();
             }
-            Command::External(_name) => {
-                //TODO: handle external commands
+            Command::External(ext) => {
+                executors::external::execute_external_command(ext);
             }
             Command::Builtin(BuiltinCommands::Echo) => {
                 executors::echo::execute_echo(args);

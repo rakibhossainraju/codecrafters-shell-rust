@@ -2,8 +2,7 @@ mod commands;
 mod utils;
 
 use commands::{BuiltinCommands, Command};
-#[allow(unused_imports)]
-use std::io::{self, Write};
+use crate::utils::{print_initial_prompt, read_user_command};
 
 fn main() {
     loop {
@@ -27,17 +26,5 @@ fn main() {
     }
 }
 
-fn print_initial_prompt() {
-    print!("$ ");
-    io::stdout().flush().unwrap();
-}
 
-fn read_user_command() -> Vec<String> {
-    let mut command = String::new();
-    io::stdin().read_line(&mut command).unwrap();
-    command
-        .trim_end()
-        .split_whitespace()
-        .map(|s| s.to_string())
-        .collect::<Vec<String>>()
-}
+

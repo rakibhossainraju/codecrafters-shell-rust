@@ -1,5 +1,6 @@
 use crate::utils::{get_os_paths, is_file_executable};
 
+#[derive(Debug)]
 pub struct ExternalCommand {
     pub name: String,
     pub path: Option<String>, // Full path to the executable if found
