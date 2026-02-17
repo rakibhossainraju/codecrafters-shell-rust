@@ -1,5 +1,6 @@
 use crate::commands::ExternalCommand;
 use crate::utils;
+use std::os::unix::prelude::CommandExt;
 
 pub fn execute_external_command(external_cmd: ExternalCommand) {
     // Try to resolve the command
@@ -10,6 +11,7 @@ pub fn execute_external_command(external_cmd: ExternalCommand) {
             .args
             .as_ref()
             .map_or(vec![], |args| args.to_vec());
+        cmd.arg0(external_cmd.name.as_str());
         cmd.args(&args);
 
         match cmd.spawn() {
