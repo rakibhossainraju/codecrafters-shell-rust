@@ -1,4 +1,4 @@
-use crate::utils::get_os_paths;
+use crate::utils::{get_os_paths, is_file_executable};
 
 pub struct ExternalCommand {
     pub name: String,
@@ -24,7 +24,7 @@ impl ExternalCommand {
         if let Some(paths) = get_os_paths() {
             for path_str in paths {
                 let full_path = path_str.join(&name);
-                if full_path.exists() && full_path.is_file() {
+                if is_file_executable(&full_path) {
                     return Some(ExternalCommand::with_path(
                         name,
                         full_path.to_string_lossy().to_string(),
