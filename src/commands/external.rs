@@ -1,38 +1,25 @@
-use crate::utils::{get_os_paths, is_file_executable};
+use crate::utils::path::get_executable_path;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct ExternalCommand {
     pub name: String,
-    pub path: Option<String>, // Full path to the executable if found
+    pub path: Option<PathBuf>, // Full path to the executable if found
+    pub args: Option<Vec<String>>,
 }
 
 impl ExternalCommand {
-    pub fn new(name: String) -> Self {
-        ExternalCommand { name, path: None }
-    }
-
-    pub fn with_path(name: String, path: String) -> Self {
-        ExternalCommand {
-            name,
-            path: Some(path),
+    /// Creates a new ExternalCommandBuilder with the given name
+    pub fn new(name: impl Into<String>, args: Option<Vec<String>>) -> Self {
+        let name = name.into();
+        Self {
+            name: name.clone(),
+            path: get_executable_path(&name),
+            args,
         }
     }
 
-    /// Resolves the external command by searching in PATH.
-    /// Returns Some(ExternalCommand) with the full path if found, None otherwise.
-    pub fn resolve(name: &str) -> Option<Self> {
-        let name = name.to_string();
-        if let Some(paths) = get_os_paths() {
-            for path_str in paths {
-                let full_path = path_str.join(&name);
-                if is_file_executable(&full_path) {
-                    return Some(ExternalCommand::with_path(
-                        name,
-                        full_path.to_string_lossy().to_string(),
-                    ));
-                }
-            }
-        }
-        None
+    pub fn path_to_string(&self) -> Option<String> {
+        self.path.as_ref().map(|p| p.to_string_lossy().to_string())
     }
 }

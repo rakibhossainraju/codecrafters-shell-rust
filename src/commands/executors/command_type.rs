@@ -13,10 +13,11 @@ pub fn execute_type(args: &[String]) {
         if BuiltinCommands::is_builtin_command(arg) {
             println!("{} is a shell builtin", arg);
         } else {
-            if let Some(cmd) = ExternalCommand::resolve(arg) {
-                println!("{} is {}", cmd.name, cmd.path.unwrap());
+            let external_cmd = ExternalCommand::new(arg, None);
+            if let Some(path) = external_cmd.path_to_string() {
+                println!("{} is {}", arg, path);
             } else {
-                print_command_not_found(arg)
+                print_command_not_found(arg);
             }
         }
     }

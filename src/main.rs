@@ -1,8 +1,8 @@
 mod commands;
 mod utils;
 
-use commands::{BuiltinCommands, Command};
 use crate::utils::{print_initial_prompt, read_user_command};
+use commands::{BuiltinCommands, Command};
 
 fn main() {
     loop {
@@ -21,10 +21,7 @@ fn main() {
             }
 
             // Execute the command with remaining arguments
-            cmd.execute(&user_input[1..]);
+            cmd.execute(user_input);
         }
     }
 }
-
-
-

@@ -17,3 +17,15 @@ pub fn is_file_executable(path: &PathBuf) -> bool {
         false
     }
 }
+
+pub fn get_executable_path(cmd_name: &str) -> Option<PathBuf> {
+    if let Some(paths) = get_os_paths() {
+        for path_str in paths {
+            let full_path = path_str.join(cmd_name);
+            if is_file_executable(&full_path) {
+                return Some(full_path);
+            }
+        }
+    }
+    None
+}

@@ -7,20 +7,19 @@ pub use external::ExternalCommand;
 
 pub enum Command {
     Builtin(BuiltinCommands),
-    External(ExternalCommand),
+    External,
 }
 
 impl Command {
-    pub fn execute(&self, args: &[String]) {
+    pub fn execute(&self, user_input: Vec<String>) {
+        let cmd_name = user_input[0].clone();
+        let args = &user_input[1..];
         match self {
             Command::Builtin(BuiltinCommands::Exit) => {
                 // Exit is handled in main loop, but included for completeness
             }
             Command::Builtin(BuiltinCommands::Clear) => {
                 executors::clear::execute_clear();
-            }
-            Command::External(ext) => {
-                executors::external::execute_external_command(ext);
             }
             Command::Builtin(BuiltinCommands::Echo) => {
                 executors::echo::execute_echo(args);
@@ -31,6 +30,13 @@ impl Command {
             Command::Builtin(BuiltinCommands::Type) => {
                 executors::command_type::execute_type(args);
             }
+            // External commands
+            Command::External => {
+                executors::external::execute_external_command(ExternalCommand::new(
+                    cmd_name,
+                    Some(args.to_vec()),
+                ));
+            }
         }
     }
 }
@@ -39,7 +45,7 @@ impl From<&str> for Command {
     fn from(s: &str) -> Self {
         match BuiltinCommands::from_str(s) {
             Some(builtin) => Command::Builtin(builtin),
-            None => Command::External(ExternalCommand::new(s.to_string())),
+            None => Command::External,
         }
     }
 }
