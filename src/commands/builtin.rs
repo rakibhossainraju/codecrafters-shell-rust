@@ -6,6 +6,7 @@ pub enum BuiltinCommands {
     Echo,
     Help,
     Type,
+    Pwd,
 }
 
 impl BuiltinCommands {
@@ -16,6 +17,7 @@ impl BuiltinCommands {
             "echo" => Some(BuiltinCommands::Echo),
             "help" => Some(BuiltinCommands::Help),
             "type" => Some(BuiltinCommands::Type),
+            "pwd" => Some(BuiltinCommands::Pwd),
             _ => None,
         }
     }
@@ -33,6 +35,7 @@ impl Display for BuiltinCommands {
             BuiltinCommands::Echo => write!(f, "echo"),
             BuiltinCommands::Help => write!(f, "help"),
             BuiltinCommands::Type => write!(f, "type"),
+            BuiltinCommands::Pwd => write!(f, "pwd"),
         }
     }
 }

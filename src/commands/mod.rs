@@ -30,6 +30,9 @@ impl Command {
             Command::Builtin(BuiltinCommands::Type) => {
                 executors::command_type::execute_type(args);
             }
+            Command::Builtin(BuiltinCommands::Pwd) => {
+                executors::pwd::execute_pwd();
+            }
             // External commands
             Command::External => {
                 executors::external::execute_external_command(ExternalCommand::new(
