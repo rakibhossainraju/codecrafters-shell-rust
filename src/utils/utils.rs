@@ -26,33 +26,62 @@ pub fn read_user_command() -> String {
 }
 
 pub fn parse_command(input: &str) -> Vec<String> {
-    let mut args = Vec::new();
+    let mut args: Vec<String> = Vec::new();
     let mut current_arg = String::new();
-
-    // Keep track of our current "state"
+    let mut chars = input.chars();
     let mut in_single_quote = false;
     let mut in_double_quote = false;
 
-    for c in input.chars() {
-        if c == '\'' && !in_double_quote {
-            // Toggle the single quote state (ignore if inside double quotes)
-            in_single_quote = !in_single_quote;
-        } else if c == '"' && !in_single_quote {
-            // Toggle double quote state (ignore if inside single quotes)
-            in_double_quote = !in_double_quote;
-        } else if c.is_whitespace() && !in_single_quote && !in_double_quote {
-            // If we hit a space AND we are not inside any quotes, the argument is done
-            if !current_arg.is_empty() {
-                args.push(current_arg.clone());
-                current_arg.clear(); // Reset for the next argument
+    while let Some(c) = chars.next() {
+        if !in_single_quote && !in_double_quote {
+            // STATE 1: Outside any quotes
+            match c {
+                '\'' => in_single_quote = true,
+                '"' => in_double_quote = true,
+                '\\' => {
+                    if let Some(escaped_char) = chars.next() {
+                        current_arg.push(escaped_char);
+                    }
+                }
+                _ if c.is_whitespace() => {
+                    if !current_arg.is_empty() {
+                        args.push(current_arg.clone());
+                        current_arg = String::new();
+                    }
+                },
+                _ => current_arg.push(c),
             }
-        } else {
-            // It's a normal character (or a space inside quotes), add it to the argument
-            current_arg.push(c);
+        } else if in_single_quote {
+            // STATE 2: Inside single quotes
+            // POSIX rule: EVERYTHING is literal in single quotes. No escaping allowed.
+            match c {
+                '\'' => in_single_quote = true,
+                _ => current_arg.push(c),
+            }
+        } else if in_double_quote {
+            // STATE 3: Inside double quotes
+            match c {
+                '"' => in_double_quote = true,
+                '\\' => {
+                    // Inside double quotes, we usually only escape " and \
+                    if let Some(escaped_char) = chars.next() {
+                        if escaped_char == '"' || escaped_char == '\\' {
+                            current_arg.push(escaped_char);
+                        } else {
+                            // If it's something else like \n, keep the backslash and the char
+                            current_arg.push('\\');
+                            current_arg.push(escaped_char);
+                        }
+                    }
+                }
+                _ => current_arg.push(c),
+            }
         }
     }
+
     if !current_arg.is_empty() {
         args.push(current_arg);
     }
+
     args
 }
