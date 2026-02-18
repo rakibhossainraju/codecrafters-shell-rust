@@ -46,7 +46,7 @@ pub fn parse_command(input: &str) -> Vec<String> {
                 _ if c.is_whitespace() => {
                     if !current_arg.is_empty() {
                         args.push(current_arg.clone());
-                        current_arg = String::new();
+                        current_arg.clear();
                     }
                 },
                 _ => current_arg.push(c),
