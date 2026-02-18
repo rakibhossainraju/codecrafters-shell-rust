@@ -23,7 +23,7 @@ pub fn read_user_command() -> Vec<String> {
     let mut command = String::new();
     io::stdin().read_line(&mut command).unwrap();
     command
-        .trim_end()
+        .trim()
         .split_whitespace()
         .map(|s| s.to_string())
         .collect::<Vec<String>>()

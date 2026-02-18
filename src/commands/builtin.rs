@@ -13,8 +13,8 @@ pub enum BuiltinCommands {
 impl BuiltinCommands {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "clear" => Some(BuiltinCommands::Clear),
-            "exit" => Some(BuiltinCommands::Exit),
+            "clear" | "c" => Some(BuiltinCommands::Clear),
+            "exit" | "exit;" => Some(BuiltinCommands::Exit),
             "echo" => Some(BuiltinCommands::Echo),
             "help" => Some(BuiltinCommands::Help),
             "type" => Some(BuiltinCommands::Type),
