@@ -55,13 +55,13 @@ pub fn parse_command(input: &str) -> Vec<String> {
             // STATE 2: Inside single quotes
             // POSIX rule: EVERYTHING is literal in single quotes. No escaping allowed.
             match c {
-                '\'' => in_single_quote = true,
+                '\'' => in_single_quote = false,
                 _ => current_arg.push(c),
             }
         } else if in_double_quote {
             // STATE 3: Inside double quotes
             match c {
-                '"' => in_double_quote = true,
+                '"' => in_double_quote = false,
                 '\\' => {
                     // Inside double quotes, we usually only escape " and \
                     if let Some(escaped_char) = chars.next() {
