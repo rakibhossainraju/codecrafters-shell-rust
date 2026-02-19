@@ -29,7 +29,7 @@ pub fn execute_external_command(external_cmd: ExternalCommand) {
             }
         }
         Err(e) => {
-            utils::print_filed_to_execute(external_cmd.name.as_str(), e);
+            utils::print_failed_to_execute(external_cmd.name.as_str(), e);
         }
     }
 }

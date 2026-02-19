@@ -1,5 +1,6 @@
 mod commands;
 mod utils;
+mod parser;
 
 use commands::{BuiltinCommands, Command};
 
@@ -10,7 +11,7 @@ fn main() {
 
         // Read user input and trim trailing whitespace
         let user_input = utils::read_user_command();
-        let args = utils::parse_command(&user_input);
+        let args = parser::parse_command(&user_input);
 
         if let Some(command_str) = args.get(0) {
             let cmd: Command = command_str.as_str().into();
