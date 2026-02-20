@@ -1,5 +1,7 @@
-use std::mem::take as mem_take;
+use std::mem;
+use std::str::Chars;
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Word(String),
     Pipe,          // |
@@ -10,96 +12,127 @@ pub enum Token {
     RedirectIn,    // <
 }
 
-pub fn tokenize(input: &str) -> Vec<Token> {
-    let mut args: Vec<Token> = Vec::new();
-    let mut current_arg = String::new();
-    let mut chars = input.chars();
-    let mut in_single_quote = false;
-    let mut in_double_quote = false;
+enum LexerState {
+    Normal,
+    SingleQuote,
+    DoubleQuote,
+    Escape(Box<LexerState>), // optional for remembering previous state
 
-    while let Some(c) = chars.next() {
-        if !in_single_quote && !in_double_quote {
-            // STATE 1: Outside any quotes
-            match c {
-                '\'' => in_single_quote = true,
-                '"' => in_double_quote = true,
-                '\\' => {
-                    if let Some(escaped_char) = chars.next() {
-                        current_arg.push(escaped_char);
-                    }
-                }
-                '>' => {
-                    if !current_arg.is_empty() {
-                        args.push(Token::Word(mem_take(&mut current_arg)));
-                    }
-                    args.push(Token::RedirectOut);
-                }
-                '<' => {
-                    if !current_arg.is_empty() {
-                        args.push(Token::Word(mem_take(&mut current_arg)));
-                    }
-                    args.push(Token::RedirectIn);
-                }
-                '|' => {
-                    if !current_arg.is_empty() {
-                        args.push(Token::Word(mem_take(&mut current_arg)));
-                    }
-                    if let Some('|') = chars.clone().next() {
-                        chars.next();
-                        args.push(Token::Or);
-                    } else {
-                        args.push(Token::Pipe);
-                    }
-                }
-                '&' => {
-                    if !current_arg.is_empty() {
-                        args.push(Token::Word(mem_take(&mut current_arg)));
-                    }
-                    if let Some('&') = chars.clone().next() {
-                        chars.next();
-                        args.push(Token::And);
-                    } else {
-                        args.push(Token::Background);
-                    }
-                }
-                _ if c.is_whitespace() => {
-                    if !current_arg.is_empty() {
-                        args.push(Token::Word(mem_take(&mut current_arg)));
-                    }
-                },
-                _ => current_arg.push(c),
-            }
-        } else if in_single_quote {
-            // STATE 2: Inside single quotes
-            // POSIX rule: EVERYTHING is literal in single quotes. No escaping allowed.
-            match c {
-                '\'' => in_single_quote = false,
-                _ => current_arg.push(c),
-            }
-        } else if in_double_quote {
-            // STATE 3: Inside double quotes
-            match c {
-                '"' => in_double_quote = false,
-                '\\' => {
-                    // Inside double quotes, we usually only escape " and \
-                    if let Some(escaped_char) = chars.next() {
-                        if escaped_char == '"' || escaped_char == '\\' {
-                            current_arg.push(escaped_char);
-                        } else {
-                            // If it's something else like \n, keep the backslash and the char
-                            current_arg.push('\\');
-                            current_arg.push(escaped_char);
-                        }
-                    }
-                }
-                _ => current_arg.push(c),
-            }
+}
+pub struct Lexer<'a> {
+    chars: Chars<'a>,
+    current_arg: String,
+    state: LexerState,
+    tokens: Vec<Token>,
+}
+impl <'a> Lexer<'a> {
+    pub fn tokenizer(input: &'a str) -> Vec<Token> {
+        let mut laxer = Lexer::new(input);
+        laxer.tokenize()
+    }
+}
+
+impl<'a> Lexer<'a> {
+    fn new(input: &'a str) -> Self {
+        Self {
+            chars: input.chars(),
+            current_arg: String::new(),
+            state: LexerState::Normal,
+            tokens: Vec::new(),
         }
     }
 
-    if !current_arg.is_empty() {
-        args.push(Token::Word(current_arg));
+    fn tokenize(&mut self) -> Vec<Token> {
+        while let Some(c) = self.chars.next() {
+            match self.state {
+                LexerState::Normal => {self.lex_normal(c)}
+                LexerState::SingleQuote => {self.lex_single_quote(c)}
+                LexerState::DoubleQuote => {self.lex_double_quote(c)}
+                LexerState::Escape(_) => {self.lex_escapee(c)}
+            }
+        }
+        // Flush whatever is left in the buffer when the string ends!
+        self.flush_current_word();
+
+        mem::take(&mut self.tokens)
     }
 
-    args
+    fn lex_normal(&mut self, c: char) {
+        match c {
+            '\'' => self.state = LexerState::SingleQuote,
+            '"'  => self.state = LexerState::DoubleQuote,
+            '\\' => self.state = LexerState::Escape(Box::new(LexerState::Normal)),
+            '>'  => self.flush_current_word_then(Token::RedirectOut),
+            '<'  => self.flush_current_word_then(Token::RedirectIn),
+            '|'  => {
+                self.flush_current_word();
+                if let Some('|') = self.chars.clone().next() {
+                    self.chars.next();
+                    self.tokens.push(Token::Or);
+                } else {
+                    self.tokens.push(Token::Pipe);
+                }
+            }
+            '&'  => {
+                self.flush_current_word();
+                if let Some('&') = self.chars.clone().next() {
+                    self.chars.next();
+                    self.tokens.push(Token::And);
+                } else {
+                    self.tokens.push(Token::Background);
+                }
+            }
+            _ if c.is_whitespace()  => self.flush_current_word(),
+            _ => self.current_arg.push(c),
+        }
+    }
+
+    fn lex_single_quote(&mut self, c: char) {
+        match c {
+            '\'' => self.state = LexerState::Normal,
+            _    => self.current_arg.push(c),
+        }
+    }
+
+    fn lex_double_quote(&mut self, c: char) {
+        match c {
+            '"'  => self.state = LexerState::Normal,
+            '\\' => self.state = LexerState::Escape(Box::new(LexerState::DoubleQuote)),
+            _ => self.current_arg.push(c),
+        }
+    }
+
+    fn lex_escapee(&mut self, c: char) {
+        if let LexerState::Escape(state) = mem::replace(&mut self.state, LexerState::Normal) {
+            match *state {
+                // Rule: Inside double quotes, only \ and " are actually escaped
+                LexerState::DoubleQuote => {
+                    if c == '"' || c == '\\' {
+                        self.current_arg.push(c);
+                    } else {
+                        self.current_arg.push('\\');
+                        self.current_arg.push(c);
+                    }
+                }
+                // Rule: Everywhere else, the backslash is consumed entirely
+                _ => self.current_arg.push(c)
+            }
+            // Return to the previous state
+            self.state = *state;
+        } else {
+            unreachable!("Escape state logic is broken");
+        }
+    }
+}
+
+impl<'a> Lexer<'a> {
+    fn flush_current_word(&mut self) {
+        if !self.current_arg.is_empty() {
+            self.tokens.push(Token::Word(mem::take(&mut self.current_arg)));
+        }
+    }
+    fn flush_current_word_then(&mut self, token: Token) {
+        self.flush_current_word();
+        self.tokens.push(token);
+    }
 }
