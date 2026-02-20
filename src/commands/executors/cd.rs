@@ -6,7 +6,7 @@ pub fn execute_cd(args: &[String]) {
 
     // 2. Handle Home Directory Expansion.
     // We must handle specific cases: "~" alone, or paths starting with "~/"
-    let target_str = if raw_path == "~"{
+    let target_str = if raw_path == "~" {
         env::var("HOME").unwrap_or("/".into())
     } else if raw_path.starts_with("~/") {
         if let Ok(home) = env::var("HOME") {

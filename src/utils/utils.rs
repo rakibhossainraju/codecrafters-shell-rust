@@ -21,6 +21,8 @@ pub fn print_exit_with_status(command: &str, status: ExitStatus) {
 
 pub fn read_user_command() -> String {
     let mut command = String::new();
-    io::stdin().read_line(&mut command).expect("Failed to read line");
+    io::stdin()
+        .read_line(&mut command)
+        .expect("Failed to read line");
     command.trim().to_string()
 }

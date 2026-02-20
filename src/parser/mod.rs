@@ -1,4 +1,4 @@
-mod parser;
 mod lexer;
+mod parser;
 
 pub use parser::*;

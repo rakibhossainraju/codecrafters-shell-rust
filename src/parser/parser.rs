@@ -1,68 +1,77 @@
+use crate::parser::lexer::Token;
+use std::iter::Peekable;
+use std::vec::IntoIter;
+use std::mem;
 
-pub fn parse_command(input: &str) -> Vec<String> {
-    let mut args: Vec<String> = Vec::new();
-    let mut current_arg = String::new();
-    let mut chars = input.chars();
-    let mut in_single_quote = false;
-    let mut in_double_quote = false;
+#[derive(Debug, Default)]
+pub struct ParsedCommand {
+    pub cmd: String,
+    pub args: Vec<String>,
+    pub redirect_in: Option<String>,
+    pub redirect_out: Option<String>,
+}
 
-    while let Some(c) = chars.next() {
-        if !in_single_quote && !in_double_quote {
-            // STATE 1: Outside any quotes
-            match c {
-                '\'' => in_single_quote = true,
-                '"' => in_double_quote = true,
-                '\\' => {
-                    if let Some(escaped_char) = chars.next() {
-                        current_arg.push(escaped_char);
-                    }
-                }
-                // '>' => {
-                //     if !current_arg.is_empty() {
-                //         args.push(current_arg.clone());
-                //         current_arg.clear();
-                //     }
-                //     args.push(">".to_string());
-                // }
-                _ if c.is_whitespace() => {
-                    if !current_arg.is_empty() {
-                        args.push(current_arg.clone());
-                        current_arg.clear();
-                    }
+pub struct Parser {
+    parsed_command: ParsedCommand,
+    tokens: Peekable<IntoIter<Token>>,
+}
+
+impl Parser {
+    pub fn new(tokens: Vec<Token>) -> Self {
+        Self {
+            parsed_command: ParsedCommand::default(),
+            tokens: tokens.into_iter().peekable(),
+        }
+    }
+
+    pub fn parse(&mut self) -> ParsedCommand {
+        while let Some(token) = self.tokens.next() {
+            match token {
+                Token::Word(word) => self.parse_word(word),
+                Token::RedirectOut => self.parse_redirect_out(),
+                Token::RedirectIn => self.parse_redirect_in(),
+                _ => {
+                    // NOT IMPLEMENTED YET.
+                    break;
                 },
-                _ => current_arg.push(c),
             }
-        } else if in_single_quote {
-            // STATE 2: Inside single quotes
-            // POSIX rule: EVERYTHING is literal in single quotes. No escaping allowed.
-            match c {
-                '\'' => in_single_quote = false,
-                _ => current_arg.push(c),
+        }
+        mem::take(&mut self.parsed_command)
+    }
+}
+
+impl Parser {
+    fn parse_word(&mut self, word: String) {
+        if self.parsed_command.cmd.is_empty() {
+            self.parsed_command.cmd = word;
+        } else {
+            self.parsed_command.args.push(word);
+        }
+    }
+
+    fn parse_redirect_out(&mut self) {
+        // We hit a `>`. The VERY NEXT token MUST be a Word (the filename).
+        // We consume it immediately using `next()`.
+        match self.tokens.next() {
+            Some(Token::Word(filename)) => {
+                self.parsed_command.redirect_out = Some(filename);
             }
-        } else if in_double_quote {
-            // STATE 3: Inside double quotes
-            match c {
-                '"' => in_double_quote = false,
-                '\\' => {
-                    // Inside double quotes, we usually only escape " and \
-                    if let Some(escaped_char) = chars.next() {
-                        if escaped_char == '"' || escaped_char == '\\' {
-                            current_arg.push(escaped_char);
-                        } else {
-                            // If it's something else like \n, keep the backslash and the char
-                            current_arg.push('\\');
-                            current_arg.push(escaped_char);
-                        }
-                    }
-                }
-                _ => current_arg.push(c),
+            _ => {
+                eprintln!("syntax error: expected file name after >");
             }
         }
     }
 
-    if !current_arg.is_empty() {
-        args.push(current_arg);
+    fn parse_redirect_in(&mut self) {
+        match self.tokens.next() {
+            Some(Token::Word(filename)) => {
+                self.parsed_command.redirect_in = Some(filename);
+            }
+            _ => {
+                eprintln!("syntax error: expected file name after <");
+            }
+        }
     }
 
-    args
+    fn parse_background(&mut self) {}
 }

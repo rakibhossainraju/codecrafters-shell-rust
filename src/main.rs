@@ -1,6 +1,6 @@
 mod commands;
-mod utils;
 mod parser;
+mod utils;
 
 use commands::{BuiltinCommands, Command};
 

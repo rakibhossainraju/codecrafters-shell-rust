@@ -4,12 +4,12 @@ use std::str::Chars;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Word(String),
-    Pipe,          // |
-    Or,            // ||
-    Background,    // &
-    And,           // &&
-    RedirectOut,   // >
-    RedirectIn,    // <
+    Pipe,        // |
+    Or,          // ||
+    Background,  // &
+    And,         // &&
+    RedirectOut, // >
+    RedirectIn,  // <
 }
 
 enum LexerState {
@@ -17,7 +17,6 @@ enum LexerState {
     SingleQuote,
     DoubleQuote,
     Escape(Box<LexerState>), // optional for remembering previous state
-
 }
 pub struct Lexer<'a> {
     chars: Chars<'a>,
@@ -25,7 +24,7 @@ pub struct Lexer<'a> {
     state: LexerState,
     tokens: Vec<Token>,
 }
-impl <'a> Lexer<'a> {
+impl<'a> Lexer<'a> {
     pub fn tokenizer(input: &'a str) -> Vec<Token> {
         let mut laxer = Lexer::new(input);
         laxer.tokenize()
@@ -45,10 +44,10 @@ impl<'a> Lexer<'a> {
     fn tokenize(&mut self) -> Vec<Token> {
         while let Some(c) = self.chars.next() {
             match self.state {
-                LexerState::Normal => {self.lex_normal(c)}
-                LexerState::SingleQuote => {self.lex_single_quote(c)}
-                LexerState::DoubleQuote => {self.lex_double_quote(c)}
-                LexerState::Escape(_) => {self.lex_escapee(c)}
+                LexerState::Normal => self.lex_normal(c),
+                LexerState::SingleQuote => self.lex_single_quote(c),
+                LexerState::DoubleQuote => self.lex_double_quote(c),
+                LexerState::Escape(_) => self.lex_escapee(c),
             }
         }
         // Flush whatever is left in the buffer when the string ends!
@@ -60,11 +59,11 @@ impl<'a> Lexer<'a> {
     fn lex_normal(&mut self, c: char) {
         match c {
             '\'' => self.state = LexerState::SingleQuote,
-            '"'  => self.state = LexerState::DoubleQuote,
+            '"' => self.state = LexerState::DoubleQuote,
             '\\' => self.state = LexerState::Escape(Box::new(LexerState::Normal)),
-            '>'  => self.flush_current_word_then(Token::RedirectOut),
-            '<'  => self.flush_current_word_then(Token::RedirectIn),
-            '|'  => {
+            '>' => self.flush_current_word_then(Token::RedirectOut),
+            '<' => self.flush_current_word_then(Token::RedirectIn),
+            '|' => {
                 self.flush_current_word();
                 if let Some('|') = self.chars.clone().next() {
                     self.chars.next();
@@ -73,7 +72,7 @@ impl<'a> Lexer<'a> {
                     self.tokens.push(Token::Pipe);
                 }
             }
-            '&'  => {
+            '&' => {
                 self.flush_current_word();
                 if let Some('&') = self.chars.clone().next() {
                     self.chars.next();
@@ -82,7 +81,7 @@ impl<'a> Lexer<'a> {
                     self.tokens.push(Token::Background);
                 }
             }
-            _ if c.is_whitespace()  => self.flush_current_word(),
+            _ if c.is_whitespace() => self.flush_current_word(),
             _ => self.current_arg.push(c),
         }
     }
@@ -90,13 +89,13 @@ impl<'a> Lexer<'a> {
     fn lex_single_quote(&mut self, c: char) {
         match c {
             '\'' => self.state = LexerState::Normal,
-            _    => self.current_arg.push(c),
+            _ => self.current_arg.push(c),
         }
     }
 
     fn lex_double_quote(&mut self, c: char) {
         match c {
-            '"'  => self.state = LexerState::Normal,
+            '"' => self.state = LexerState::Normal,
             '\\' => self.state = LexerState::Escape(Box::new(LexerState::DoubleQuote)),
             _ => self.current_arg.push(c),
         }
@@ -115,7 +114,7 @@ impl<'a> Lexer<'a> {
                     }
                 }
                 // Rule: Everywhere else, the backslash is consumed entirely
-                _ => self.current_arg.push(c)
+                _ => self.current_arg.push(c),
             }
             // Return to the previous state
             self.state = *state;
@@ -128,7 +127,8 @@ impl<'a> Lexer<'a> {
 impl<'a> Lexer<'a> {
     fn flush_current_word(&mut self) {
         if !self.current_arg.is_empty() {
-            self.tokens.push(Token::Word(mem::take(&mut self.current_arg)));
+            self.tokens
+                .push(Token::Word(mem::take(&mut self.current_arg)));
         }
     }
     fn flush_current_word_then(&mut self, token: Token) {
