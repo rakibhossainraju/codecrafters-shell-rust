@@ -1,7 +1,6 @@
 use crate::commands::{
+    BuiltinCommands, ExternalCommand,
     executors::{cd, clear, command_type, echo, external, help, pwd},
-    BuiltinCommands,
-    ExternalCommand,
 };
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;

@@ -1,16 +1,17 @@
 use crate::error::{Result, ShellError};
+use crate::parser::Descriptor;
 use std::mem;
 use std::str::Chars;
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Word(String),
-    Pipe,        // |
-    Or,          // ||
-    Background,  // &
-    And,         // &&
-    RedirectOut, // >
-    RedirectIn,  // <
+    Pipe,                    // |
+    Or,                      // ||
+    Background,              // &
+    And,                     // &&
+    RedirectOut(Descriptor), // >
+    RedirectIn(Descriptor),  // <
 }
 
 #[derive(Debug, PartialEq)]
@@ -75,8 +76,9 @@ impl<'a> Lexer<'a> {
             '\'' => self.state = LexerState::SingleQuote,
             '"' => self.state = LexerState::DoubleQuote,
             '\\' => self.state = LexerState::Escape(Box::new(LexerState::Normal)),
-            '>' => self.flush_current_word_then(Token::RedirectOut),
-            '<' => self.flush_current_word_then(Token::RedirectIn),
+            '0' | '1' | '2' => self.handle_descriptor(c),
+            '>' => self.flush_current_word_then(Token::RedirectOut(Descriptor::Stdout)),
+            '<' => self.flush_current_word_then(Token::RedirectIn(Descriptor::Stdout)),
             '|' => {
                 self.flush_current_word();
                 if let Some('|') = self.chars.clone().next() {
@@ -149,5 +151,17 @@ impl<'a> Lexer<'a> {
     fn flush_current_word_then(&mut self, token: Token) {
         self.flush_current_word();
         self.tokens.push(token);
+    }
+
+    fn handle_descriptor(&mut self, c: char) {
+        if let Some('>') = self.chars.clone().next() {
+            self.chars.next();
+            self.flush_current_word_then(Token::RedirectOut(c.into()));
+        } else if let Some('<') = self.chars.clone().next() {
+            self.chars.next();
+            self.flush_current_word_then(Token::RedirectIn(c.into()));
+        } else {
+            self.current_arg.push(c);
+        }
     }
 }
