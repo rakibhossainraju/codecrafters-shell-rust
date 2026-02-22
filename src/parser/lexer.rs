@@ -131,6 +131,7 @@ impl<'a> Lexer<'a> {
                 .push(Token::Word(mem::take(&mut self.current_arg)));
         }
     }
+
     fn flush_current_word_then(&mut self, token: Token) {
         self.flush_current_word();
         self.tokens.push(token);

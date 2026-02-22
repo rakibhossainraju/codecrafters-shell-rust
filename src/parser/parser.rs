@@ -17,15 +17,17 @@ pub struct Parser {
 }
 
 impl Parser {
+    pub fn parser(tokens: Vec<Token>) -> ParsedCommand {
+        Parser::new(tokens).parse()
+    }
+}
+
+impl Parser {
     fn new(tokens: Vec<Token>) -> Self {
         Self {
             parsed_command: ParsedCommand::default(),
             tokens: tokens.into_iter().peekable(),
         }
-    }
-
-    pub fn parser(tokens: Vec<Token>) -> ParsedCommand {
-        Parser::new(tokens).parse()
     }
 
     fn parse(&mut self) -> ParsedCommand {
@@ -42,9 +44,7 @@ impl Parser {
         }
         mem::take(&mut self.parsed_command)
     }
-}
 
-impl Parser {
     fn parse_word(&mut self, word: String) {
         if self.parsed_command.cmd.is_empty() {
             self.parsed_command.cmd = word;
