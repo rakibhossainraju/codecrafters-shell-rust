@@ -1,6 +1,7 @@
-pub fn execute_pwd() {
-    match std::env::current_dir() {
-        Ok(path) => println!("{}", path.display()),
-        Err(e) => eprintln!("Error getting current directory: {}", e),
-    }
+use crate::error::{ShellError, Result};
+
+pub fn execute_pwd() -> Result<()> {
+    let path = std::env::current_dir().map_err(ShellError::IoError)?;
+    println!("{}", path.display());
+    Ok(())
 }

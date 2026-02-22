@@ -1,14 +1,26 @@
-pub fn execute_clear() {
+use crate::error::{ShellError, Result};
+use std::process::Command;
+
+pub fn execute_clear() -> Result<()> {
     // Clear the terminal screen
     // This is a simple implementation that works on Unix-like systems and Windows
-    if cfg!(target_os = "windows") {
-        std::process::Command::new("cmd")
+    let status = if cfg!(target_os = "windows") {
+        Command::new("cmd")
             .args(&["/C", "cls"])
             .status()
-            .expect("Failed to clear the screen");
+            .map_err(ShellError::IoError)?
     } else {
-        std::process::Command::new("clear")
+        Command::new("clear")
             .status()
-            .expect("Failed to clear the screen");
+            .map_err(ShellError::IoError)?
+    };
+
+    if !status.success() {
+        return Err(ShellError::ExitWithStatus {
+            command: "clear".to_string(),
+            status,
+        });
     }
+
+    Ok(())
 }

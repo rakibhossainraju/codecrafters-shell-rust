@@ -1,7 +1,8 @@
+use crate::error::{Result, ShellError};
 use std::mem;
 use std::str::Chars;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Word(String),
     Pipe,        // |
@@ -12,6 +13,7 @@ pub enum Token {
     RedirectIn,  // <
 }
 
+#[derive(Debug, PartialEq)]
 enum LexerState {
     Normal,
     SingleQuote,
@@ -24,8 +26,9 @@ pub struct Lexer<'a> {
     state: LexerState,
     tokens: Vec<Token>,
 }
+
 impl<'a> Lexer<'a> {
-    pub fn tokenizer(input: &'a str) -> Vec<Token> {
+    pub fn tokenizer(input: &'a str) -> Result<Vec<Token>> {
         let mut laxer = Lexer::new(input);
         laxer.tokenize()
     }
@@ -41,7 +44,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn tokenize(&mut self) -> Vec<Token> {
+    fn tokenize(&mut self) -> Result<Vec<Token>> {
         while let Some(c) = self.chars.next() {
             match self.state {
                 LexerState::Normal => self.lex_normal(c),
@@ -53,7 +56,18 @@ impl<'a> Lexer<'a> {
         // Flush whatever is left in the buffer when the string ends!
         self.flush_current_word();
 
-        mem::take(&mut self.tokens)
+        match self.state {
+            LexerState::Normal => Ok(mem::take(&mut self.tokens)),
+            LexerState::SingleQuote => {
+                Err(ShellError::SyntaxError("unclosed single quote".to_string()))
+            }
+            LexerState::DoubleQuote => {
+                Err(ShellError::SyntaxError("unclosed double quote".to_string()))
+            }
+            LexerState::Escape(_) => Err(ShellError::SyntaxError(
+                "unclosed escape sequence".to_string(),
+            )),
+        }
     }
 
     fn lex_normal(&mut self, c: char) {

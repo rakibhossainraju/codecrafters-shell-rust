@@ -1,9 +1,9 @@
 use crate::commands::ExternalCommand;
-use crate::utils;
+use crate::error::{ShellError, Result};
 use std::os::unix::prelude::CommandExt;
 use std::process::Command as OsCommand;
 
-pub fn execute_external_command(external_cmd: &ExternalCommand) {
+pub fn execute_external_command(external_cmd: &ExternalCommand) -> Result<()> {
     // The path is already resolved in ExternalCommand
     let mut cmd = OsCommand::new(&external_cmd.path);
 
@@ -16,18 +16,19 @@ pub fn execute_external_command(external_cmd: &ExternalCommand) {
     // TODO:: Add the redirect logic!
     // if let Some(out_file) = external_cmd.ast.redirect_out { ... }
 
-    match cmd.spawn() {
-        Ok(mut child) => {
-            if let Ok(status) = child.wait() {
-                if !status.success() {
-                    utils::print_exit_with_status(&external_cmd.ast.cmd, status);
-                }
-            } else {
-                eprintln!("Failed to wait for command '{}'", external_cmd.ast.cmd);
-            }
-        }
-        Err(error) => {
-            utils::print_failed_to_execute(&external_cmd.ast.cmd, error);
-        }
+    let mut child = cmd.spawn().map_err(|error| ShellError::ExecutionError {
+        command: external_cmd.ast.cmd.clone(),
+        source: error,
+    })?;
+
+    let status = child.wait().map_err(|_| ShellError::WaitError(external_cmd.ast.cmd.clone()))?;
+
+    if !status.success() {
+        return Err(ShellError::ExitWithStatus {
+            command: external_cmd.ast.cmd.clone(),
+            status,
+        });
     }
+
+    Ok(())
 }

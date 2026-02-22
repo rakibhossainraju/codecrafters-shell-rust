@@ -1,4 +1,5 @@
 use crate::parser::lexer::Token;
+use crate::error::{ShellError, Result};
 use std::iter::Peekable;
 use std::vec::IntoIter;
 use std::mem;
@@ -17,7 +18,7 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn parser(tokens: Vec<Token>) -> ParsedCommand {
+    pub fn parser(tokens: Vec<Token>) -> Result<ParsedCommand> {
         Parser::new(tokens).parse()
     }
 }
@@ -30,19 +31,19 @@ impl Parser {
         }
     }
 
-    fn parse(&mut self) -> ParsedCommand {
+    fn parse(&mut self) -> Result<ParsedCommand> {
         while let Some(token) = self.tokens.next() {
             match token {
                 Token::Word(word) => self.parse_word(word),
-                Token::RedirectOut => self.parse_redirect_out(),
-                Token::RedirectIn => self.parse_redirect_in(),
+                Token::RedirectOut => self.parse_redirect_out()?,
+                Token::RedirectIn => self.parse_redirect_in()?,
                 _ => {
                     // NOT IMPLEMENTED YET.
                     break;
                 },
             }
         }
-        mem::take(&mut self.parsed_command)
+        Ok(mem::take(&mut self.parsed_command))
     }
 
     fn parse_word(&mut self, word: String) {
@@ -53,26 +54,28 @@ impl Parser {
         }
     }
 
-    fn parse_redirect_out(&mut self) {
+    fn parse_redirect_out(&mut self) -> Result<()> {
         // We hit a `>`. The VERY NEXT token MUST be a Word (the filename).
         // We consume it immediately using `next()`.
         match self.tokens.next() {
             Some(Token::Word(filename)) => {
                 self.parsed_command.redirect_out = Some(filename);
+                Ok(())
             }
             _ => {
-                eprintln!("syntax error: expected file name after >");
+                Err(ShellError::SyntaxError("expected file name after >".to_string()))
             }
         }
     }
 
-    fn parse_redirect_in(&mut self) {
+    fn parse_redirect_in(&mut self) -> Result<()> {
         match self.tokens.next() {
             Some(Token::Word(filename)) => {
                 self.parsed_command.redirect_in = Some(filename);
+                Ok(())
             }
             _ => {
-                eprintln!("syntax error: expected file name after <");
+                Err(ShellError::SyntaxError("expected file name after <".to_string()))
             }
         }
     }

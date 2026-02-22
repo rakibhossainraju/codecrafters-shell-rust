@@ -1,9 +1,12 @@
+use crate::error::Result;
+
 /// Execute the help builtin command
-pub fn execute_help() {
+pub fn execute_help() -> Result<()> {
     println!("Available builtin commands:");
     println!("  exit     - Exit the shell");
     println!("  echo     - Print text to stdout");
     println!("  type     - Show information about a command");
     println!("  help     - Show this help message");
     println!("  clear    - Clears screen clearing memory");
+    Ok(())
 }

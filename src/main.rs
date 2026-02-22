@@ -1,6 +1,7 @@
 mod commands;
 mod parser;
 mod utils;
+mod error;
 
 use crate::parser::{Lexer, Parser};
 use commands::{BuiltinCommands, Command};
@@ -12,16 +13,42 @@ fn main() {
 
         // Read user input and trim trailing whitespace
         let user_input = utils::read_user_command();
-        let tokens = Lexer::tokenizer(&user_input);
-        let parsed_cmd = Parser::parser(tokens);
+        if user_input.is_empty() {
+            continue;
+        }
 
-        let cmd = Command::resolve(parsed_cmd);
+        let tokens = match Lexer::tokenizer(&user_input) {
+            Ok(tokens) => tokens,
+            Err(e) => {
+                eprintln!("{}", e);
+                continue;
+            }
+        };
+
+        let parsed_cmd = match Parser::parser(tokens) {
+            Ok(cmd) => cmd,
+            Err(e) => {
+                eprintln!("{}", e);
+                continue;
+            }
+        };
+
+        let cmd = match Command::resolve(parsed_cmd) {
+            Ok(cmd) => cmd,
+            Err(e) => {
+                eprintln!("{}", e);
+                continue;
+            }
+        };
+
         // Check for exit before executing (to break the loop)
-        if matches!(cmd, Some(Command::Builtin(BuiltinCommands::Exit, _))) {
+        if matches!(cmd, Command::Builtin(BuiltinCommands::Exit, _)) {
             break;
         }
 
         // Execute the command with remaining arguments
-        cmd.execute();
+        if let Err(e) = cmd.execute() {
+            eprintln!("{}", e);
+        }
     }
 }
