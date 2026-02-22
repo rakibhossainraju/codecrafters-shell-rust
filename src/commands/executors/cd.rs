@@ -1,8 +1,9 @@
 use std::{env, fs};
+use crate::parser::ParsedCommand;
 
-pub fn execute_cd(args: &[String]) {
+pub fn execute_cd(parsed_cmd: ParsedCommand) {
     // 1. Get the raw path string, defaulting to "~" if empty
-    let raw_path = args.first().map(|s| s.as_str()).unwrap_or("~");
+    let raw_path = parsed_cmd.args.first().map(|s| s.as_str()).unwrap_or("~");
 
     // 2. Handle Home Directory Expansion.
     // We must handle specific cases: "~" alone, or paths starting with "~/"

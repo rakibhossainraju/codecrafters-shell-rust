@@ -1,8 +1,10 @@
 use crate::commands::ExternalCommand;
 use crate::utils;
 use std::os::unix::prelude::CommandExt;
+use crate::parser::ParsedCommand;
 
-pub fn execute_external_command(external_cmd: ExternalCommand) {
+pub fn execute_external_command(parsed_cmd: ParsedCommand) {
+    let external_cmd = ExternalCommand::new(parsed_cmd.cmd, Some(parsed_cmd.args));
     let external_cmd_path = match external_cmd.path {
         Some(path) => path,
         None => {

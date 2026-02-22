@@ -3,6 +3,7 @@ mod parser;
 mod utils;
 
 use commands::{BuiltinCommands, Command};
+use crate::parser::{Lexer, Parser};
 
 fn main() {
     loop {
@@ -11,18 +12,16 @@ fn main() {
 
         // Read user input and trim trailing whitespace
         let user_input = utils::read_user_command();
-        let args = parser::parse_command(&user_input);
-
-        if let Some(command_str) = args.get(0) {
-            let cmd: Command = command_str.as_str().into();
-
-            // Check for exit before executing (to break the loop)
-            if matches!(cmd, Command::Builtin(BuiltinCommands::Exit)) {
-                break;
-            }
-
-            // Execute the command with remaining arguments
-            cmd.execute(args);
+        let tokens = Lexer::tokenizer(&user_input);
+        let parsed_cmd = Parser::parser(tokens);
+        
+        let cmd: Command = parsed_cmd.cmd.as_str().into();
+        // Check for exit before executing (to break the loop)
+        if matches!(cmd, Command::Builtin(BuiltinCommands::Exit)) {
+            break;
         }
+
+        // Execute the command with remaining arguments
+        cmd.execute(parsed_cmd);
     }
 }

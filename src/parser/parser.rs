@@ -17,14 +17,18 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+    fn new(tokens: Vec<Token>) -> Self {
         Self {
             parsed_command: ParsedCommand::default(),
             tokens: tokens.into_iter().peekable(),
         }
     }
 
-    pub fn parse(&mut self) -> ParsedCommand {
+    pub fn parser(tokens: Vec<Token>) -> ParsedCommand {
+        Parser::new(tokens).parse()
+    }
+
+    fn parse(&mut self) -> ParsedCommand {
         while let Some(token) = self.tokens.next() {
             match token {
                 Token::Word(word) => self.parse_word(word),
@@ -73,5 +77,5 @@ impl Parser {
         }
     }
 
-    fn parse_background(&mut self) {}
+    // fn parse_background(&mut self) {}
 }
