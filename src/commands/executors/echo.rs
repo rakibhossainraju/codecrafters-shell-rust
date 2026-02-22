@@ -1,5 +1,5 @@
-use crate::parser::ParsedCommand;
 use crate::error::Result;
+use crate::parser::ParsedCommand;
 
 /// Execute the echo builtin command
 pub fn execute_echo(parsed_cmd: &ParsedCommand) -> Result<()> {

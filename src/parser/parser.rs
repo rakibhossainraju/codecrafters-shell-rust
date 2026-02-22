@@ -1,8 +1,8 @@
+use crate::error::{Result, ShellError};
 use crate::parser::lexer::Token;
-use crate::error::{ShellError, Result};
 use std::iter::Peekable;
-use std::vec::IntoIter;
 use std::mem;
+use std::vec::IntoIter;
 
 #[derive(Debug, Default)]
 pub struct ParsedCommand {
@@ -40,7 +40,7 @@ impl Parser {
                 _ => {
                     // NOT IMPLEMENTED YET.
                     break;
-                },
+                }
             }
         }
         Ok(mem::take(&mut self.parsed_command))
@@ -62,9 +62,9 @@ impl Parser {
                 self.parsed_command.redirect_out = Some(filename);
                 Ok(())
             }
-            _ => {
-                Err(ShellError::SyntaxError("expected file name after >".to_string()))
-            }
+            _ => Err(ShellError::SyntaxError(
+                "expected file name after >".to_string(),
+            )),
         }
     }
 
@@ -74,9 +74,9 @@ impl Parser {
                 self.parsed_command.redirect_in = Some(filename);
                 Ok(())
             }
-            _ => {
-                Err(ShellError::SyntaxError("expected file name after <".to_string()))
-            }
+            _ => Err(ShellError::SyntaxError(
+                "expected file name after <".to_string(),
+            )),
         }
     }
 

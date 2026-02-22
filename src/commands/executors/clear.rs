@@ -1,4 +1,4 @@
-use crate::error::{ShellError, Result};
+use crate::error::{Result, ShellError};
 use std::process::Command;
 
 pub fn execute_clear() -> Result<()> {

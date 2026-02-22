@@ -1,6 +1,10 @@
-use crate::commands::{executors, BuiltinCommands, ExternalCommand};
+use crate::commands::{
+    executors::{cd, clear, command_type, echo, external, help, pwd},
+    BuiltinCommands,
+    ExternalCommand,
+};
+use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
-use crate::error::{ShellError, Result};
 
 pub enum Command {
     Builtin(BuiltinCommands, ParsedCommand),
@@ -10,7 +14,7 @@ pub enum Command {
 impl Command {
     pub fn resolve(parsed_cmd: ParsedCommand) -> Result<Self> {
         if parsed_cmd.cmd.is_empty() {
-             return Err(ShellError::SyntaxError("empty command".to_string()));
+            return Err(ShellError::SyntaxError("empty command".to_string()));
         }
 
         // Try builtin commands first
@@ -27,31 +31,19 @@ impl Command {
     pub fn execute(&self) -> Result<()> {
         match self {
             Command::Builtin(BuiltinCommands::Exit, _) => {
-                // Exit is handled in main loop, but included for completeness
+                // Exit is handled in the main loop but included for completeness
                 Ok(())
             }
-            Command::Builtin(BuiltinCommands::Cd, parsed_cmd) => {
-                executors::cd::execute_cd(parsed_cmd)
-            }
-            Command::Builtin(BuiltinCommands::Clear, _) => {
-                executors::clear::execute_clear()
-            }
-            Command::Builtin(BuiltinCommands::Echo, parsed_cmd) => {
-                executors::echo::execute_echo(parsed_cmd)
-            }
-            Command::Builtin(BuiltinCommands::Help, _) => {
-                executors::help::execute_help()
-            }
+            Command::Builtin(BuiltinCommands::Cd, parsed_cmd) => cd::execute_cd(parsed_cmd),
+            Command::Builtin(BuiltinCommands::Clear, _) => clear::execute_clear(),
+            Command::Builtin(BuiltinCommands::Echo, parsed_cmd) => echo::execute_echo(parsed_cmd),
+            Command::Builtin(BuiltinCommands::Help, _) => help::execute_help(),
             Command::Builtin(BuiltinCommands::Type, parsed_cmd) => {
-                executors::command_type::execute_type(parsed_cmd)
+                command_type::execute_type(parsed_cmd)
             }
-            Command::Builtin(BuiltinCommands::Pwd, _) => {
-                executors::pwd::execute_pwd()
-            }
+            Command::Builtin(BuiltinCommands::Pwd, _) => pwd::execute_pwd(),
             // External commands
-            Command::External(external_cmd) => {
-                executors::external::execute_external_command(external_cmd)
-            }
+            Command::External(external_cmd) => external::execute_external_command(external_cmd),
         }
     }
 }

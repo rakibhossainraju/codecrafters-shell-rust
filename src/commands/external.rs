@@ -1,3 +1,4 @@
+use crate::error::ShellError;
 use crate::parser::ParsedCommand;
 use crate::utils::path::get_executable_path;
 use std::path::PathBuf;
@@ -14,18 +15,16 @@ impl ExternalCommand {
     /// Returns Some(ExternalCommand) if found, None otherwise
     pub fn try_resolve(ast: ParsedCommand) -> Option<Self> {
         let path = get_executable_path(&ast.cmd)?;
-        Some(Self {
-            path,
-            ast,
-        })
+        Some(Self { path, ast })
     }
 }
 
 /// Alternative: Implement TryFrom for ergonomic conversion
 impl TryFrom<ParsedCommand> for ExternalCommand {
-    type Error = ();
+    type Error = ShellError;
 
     fn try_from(ast: ParsedCommand) -> Result<Self, Self::Error> {
-        Self::try_resolve(ast).ok_or(())
+        let cmd_name = ast.cmd.clone();
+        Self::try_resolve(ast).ok_or_else(|| ShellError::CommandNotFound(cmd_name))
     }
 }

@@ -1,5 +1,5 @@
+use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
-use crate::error::{ShellError, Result};
 use std::{env, fs};
 
 pub fn execute_cd(parsed_cmd: &ParsedCommand) -> Result<()> {
@@ -23,8 +23,8 @@ pub fn execute_cd(parsed_cmd: &ParsedCommand) -> Result<()> {
     };
 
     // 3. Resolve path (Strict: must exist)
-    let target_dir = fs::canonicalize(&target_str)
-        .map_err(|_| ShellError::CdError(target_str.clone()))?;
+    let target_dir =
+        fs::canonicalize(&target_str).map_err(|_| ShellError::CdError(target_str.clone()))?;
 
     // 4. Directory Check
     if !target_dir.is_dir() {

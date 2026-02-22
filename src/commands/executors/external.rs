@@ -1,5 +1,5 @@
 use crate::commands::ExternalCommand;
-use crate::error::{ShellError, Result};
+use crate::error::{Result, ShellError};
 use std::os::unix::prelude::CommandExt;
 use std::process::Command as OsCommand;
 
@@ -21,7 +21,9 @@ pub fn execute_external_command(external_cmd: &ExternalCommand) -> Result<()> {
         source: error,
     })?;
 
-    let status = child.wait().map_err(|_| ShellError::WaitError(external_cmd.ast.cmd.clone()))?;
+    let status = child
+        .wait()
+        .map_err(|_| ShellError::WaitError(external_cmd.ast.cmd.clone()))?;
 
     if !status.success() {
         return Err(ShellError::ExitWithStatus {

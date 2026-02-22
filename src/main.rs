@@ -1,7 +1,7 @@
 mod commands;
+mod error;
 mod parser;
 mod utils;
-mod error;
 
 use crate::parser::{Lexer, Parser};
 use commands::{BuiltinCommands, Command};
