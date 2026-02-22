@@ -4,6 +4,7 @@ use crate::commands::{
 };
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
+use crate::utils::get_stdout;
 
 pub enum Command {
     Builtin(BuiltinCommands, ParsedCommand),
@@ -28,21 +29,34 @@ impl Command {
     }
 
     pub fn execute(&self) -> Result<()> {
+        let mut stdout;
         match self {
             Command::Builtin(BuiltinCommands::Exit, _) => {
                 // Exit is handled in the main loop but included for completeness
                 Ok(())
             }
-            Command::Builtin(BuiltinCommands::Cd, parsed_cmd) => cd::execute_cd(parsed_cmd),
+            Command::Builtin(BuiltinCommands::Cd, parsed_cmd) => {
+                stdout = get_stdout(parsed_cmd);
+                cd::execute_cd(parsed_cmd, &mut stdout)
+            },
             Command::Builtin(BuiltinCommands::Clear, _) => clear::execute_clear(),
-            Command::Builtin(BuiltinCommands::Echo, parsed_cmd) => echo::execute_echo(parsed_cmd),
-            Command::Builtin(BuiltinCommands::Help, _) => help::execute_help(),
+            Command::Builtin(BuiltinCommands::Echo, parsed_cmd) => {
+                stdout = get_stdout(parsed_cmd);
+                echo::execute_echo(parsed_cmd, &mut stdout)
+            },
+            Command::Builtin(BuiltinCommands::Help, parsed_cmd) => {
+                stdout = get_stdout(parsed_cmd);
+                help::execute_help(&mut stdout)
+            },
             Command::Builtin(BuiltinCommands::Type, parsed_cmd) => {
-                command_type::execute_type(parsed_cmd)
+                stdout = get_stdout(parsed_cmd);
+                command_type::execute_type(parsed_cmd, &mut stdout)
             }
             Command::Builtin(BuiltinCommands::Pwd, _) => pwd::execute_pwd(),
             // External commands
-            Command::External(external_cmd) => external::execute_external_command(external_cmd),
+            Command::External(external_cmd) => {
+                external::execute_external_command(external_cmd)
+            },
         }
     }
 }

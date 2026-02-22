@@ -1,12 +1,13 @@
+use std::io::Write;
 use crate::error::Result;
 use crate::parser::ParsedCommand;
 
 /// Execute the echo builtin command
-pub fn execute_echo(parsed_cmd: &ParsedCommand) -> Result<()> {
+pub fn execute_echo(parsed_cmd: &ParsedCommand, stdout: &mut dyn Write) -> Result<()> {
     if parsed_cmd.args.is_empty() {
-        println!();
+        writeln!(stdout)?;
     } else {
-        println!("{}", parsed_cmd.args.join(" "));
+        writeln!(stdout, "{}", parsed_cmd.args.join(" "))?;
     }
     Ok(())
 }

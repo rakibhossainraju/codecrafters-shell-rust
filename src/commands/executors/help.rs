@@ -1,7 +1,8 @@
+use std::io::Write;
 use crate::error::Result;
 
 /// Execute the help builtin command
-pub fn execute_help() -> Result<()> {
+pub fn execute_help(_: &mut dyn Write) -> Result<()> {
     println!("Available builtin commands:");
     println!("  exit     - Exit the shell");
     println!("  echo     - Print text to stdout");

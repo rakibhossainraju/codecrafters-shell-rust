@@ -6,6 +6,10 @@ pub fn get_os_paths() -> Option<Vec<PathBuf>> {
     env::var_os("PATH").map(|os_path| env::split_paths(&os_path).collect())
 }
 
+// pub fn get_relative_path(path: &str) -> Option<String> {
+//     env::current_dir().ok()?.join(path).to_str().map(String::from)
+// }
+
 pub fn is_file_executable(path: &PathBuf) -> bool {
     if !path.is_file() {
         return false;
