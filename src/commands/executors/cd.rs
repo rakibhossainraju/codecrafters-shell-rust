@@ -1,7 +1,7 @@
-use std::{env, fs};
 use crate::parser::ParsedCommand;
+use std::{env, fs};
 
-pub fn execute_cd(parsed_cmd: ParsedCommand) {
+pub fn execute_cd(parsed_cmd: &ParsedCommand) {
     // 1. Get the raw path string, defaulting to "~" if empty
     let raw_path = parsed_cmd.args.first().map(|s| s.as_str()).unwrap_or("~");
 

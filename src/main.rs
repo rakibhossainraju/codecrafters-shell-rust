@@ -2,8 +2,8 @@ mod commands;
 mod parser;
 mod utils;
 
-use commands::{BuiltinCommands, Command};
 use crate::parser::{Lexer, Parser};
+use commands::{BuiltinCommands, Command};
 
 fn main() {
     loop {
@@ -14,14 +14,14 @@ fn main() {
         let user_input = utils::read_user_command();
         let tokens = Lexer::tokenizer(&user_input);
         let parsed_cmd = Parser::parser(tokens);
-        
-        let cmd: Command = parsed_cmd.cmd.as_str().into();
+
+        let cmd = Command::resolve(parsed_cmd);
         // Check for exit before executing (to break the loop)
-        if matches!(cmd, Command::Builtin(BuiltinCommands::Exit)) {
+        if matches!(cmd, Some(Command::Builtin(BuiltinCommands::Exit, _))) {
             break;
         }
 
         // Execute the command with remaining arguments
-        cmd.execute(parsed_cmd);
+        cmd.execute();
     }
 }

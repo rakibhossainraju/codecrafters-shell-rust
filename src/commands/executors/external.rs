@@ -1,37 +1,33 @@
 use crate::commands::ExternalCommand;
 use crate::utils;
 use std::os::unix::prelude::CommandExt;
-use crate::parser::ParsedCommand;
+use std::process::Command as OsCommand;
 
-pub fn execute_external_command(parsed_cmd: ParsedCommand) {
-    let external_cmd = ExternalCommand::new(parsed_cmd.cmd, Some(parsed_cmd.args));
-    let external_cmd_path = match external_cmd.path {
-        Some(path) => path,
-        None => {
-            utils::print_command_not_found(external_cmd.name.as_str());
-            return;
-        }
-    };
-    let mut cmd = std::process::Command::new(external_cmd_path);
-    let args = external_cmd.args.unwrap_or_default();
+pub fn execute_external_command(external_cmd: &ExternalCommand) {
+    // The path is already resolved in ExternalCommand
+    let mut cmd = OsCommand::new(&external_cmd.path);
 
-    cmd.arg0(external_cmd.name.as_str());
-    cmd.args(&args);
+    // Set arg0 to the command name (not full path)
+    cmd.arg0(&external_cmd.ast.cmd);
+
+    // Add all arguments
+    cmd.args(&external_cmd.ast.args);
+
+    // TODO:: Add the redirect logic!
+    // if let Some(out_file) = external_cmd.ast.redirect_out { ... }
 
     match cmd.spawn() {
         Ok(mut child) => {
-            // Wait for the command to finish
             if let Ok(status) = child.wait() {
                 if !status.success() {
-                    utils::print_exit_with_status(external_cmd.name.as_str(), status);
-                    return;
+                    utils::print_exit_with_status(&external_cmd.ast.cmd, status);
                 }
             } else {
-                eprintln!("Failed to wait for command '{}'", external_cmd.name);
+                eprintln!("Failed to wait for command '{}'", external_cmd.ast.cmd);
             }
         }
-        Err(e) => {
-            utils::print_failed_to_execute(external_cmd.name.as_str(), e);
+        Err(error) => {
+            utils::print_failed_to_execute(&external_cmd.ast.cmd, error);
         }
     }
 }
