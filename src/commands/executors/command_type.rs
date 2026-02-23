@@ -15,12 +15,10 @@ pub fn execute_type(parsed_cmd: &ParsedCommand, stdout: &mut dyn Write) -> Resul
 
     for arg in parsed_cmd.args.iter() {
         if BuiltinCommands::is_builtin_command(arg) {
-            write!(stdout, "{} is a shell builtin", arg)?;
-            println!();
+            writeln!(stdout, "{} is a shell builtin", arg)?;
         } else {
             if let Some(path) = get_executable_path(arg) {
-                write!(stdout, "{} is {}", arg, path.display())?;
-                println!();
+                writeln!(stdout, "{} is {}", arg, path.display())?;
             } else {
                 return Err(ShellError::CommandNotFound(arg.clone()));
             }

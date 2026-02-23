@@ -1,10 +1,10 @@
+use crate::error::{Result, ShellError};
+use crate::parser::ParsedCommand;
+use crate::utils::redirection::{ResolvedRedirections, IoStreams};
 use crate::commands::{
     BuiltinCommands, ExternalCommand,
     executors::{cd, clear, command_type, echo, external, help, pwd},
 };
-use crate::error::{Result, ShellError};
-use crate::parser::ParsedCommand;
-use crate::utils::get_stdout;
 
 pub enum Command {
     Builtin(BuiltinCommands, ParsedCommand),
@@ -29,30 +29,20 @@ impl Command {
     }
 
     pub fn execute(&self) -> Result<()> {
-        let mut stdout;
         match self {
-            Command::Builtin(BuiltinCommands::Exit, _) => {
-                // Exit is handled in the main loop but included for completeness
-                Ok(())
-            }
-            Command::Builtin(BuiltinCommands::Cd, parsed_cmd) => {
-                stdout = get_stdout(parsed_cmd);
-                cd::execute_cd(parsed_cmd, &mut stdout)
+            Command::Builtin(builtin, parsed_cmd) => {
+                let resolved = ResolvedRedirections::resolve(parsed_cmd)?;
+                let mut streams = IoStreams::from_resolved(resolved);
+                match builtin {
+                    BuiltinCommands::Cd => cd::execute_cd(parsed_cmd, &mut streams.stdout),
+                    BuiltinCommands::Clear => clear::execute_clear(parsed_cmd),
+                    BuiltinCommands::Echo => echo::execute_echo(parsed_cmd, &mut streams.stdout),
+                    BuiltinCommands::Help => help::execute_help(&mut streams.stdout),
+                    BuiltinCommands::Type => command_type::execute_type(parsed_cmd, &mut streams.stdout),
+                    BuiltinCommands::Pwd => pwd::execute_pwd(&mut streams.stdout),
+                    BuiltinCommands::Exit => Ok(()),
+                }
             },
-            Command::Builtin(BuiltinCommands::Clear, _) => clear::execute_clear(),
-            Command::Builtin(BuiltinCommands::Echo, parsed_cmd) => {
-                stdout = get_stdout(parsed_cmd);
-                echo::execute_echo(parsed_cmd, &mut stdout)
-            },
-            Command::Builtin(BuiltinCommands::Help, parsed_cmd) => {
-                stdout = get_stdout(parsed_cmd);
-                help::execute_help(&mut stdout)
-            },
-            Command::Builtin(BuiltinCommands::Type, parsed_cmd) => {
-                stdout = get_stdout(parsed_cmd);
-                command_type::execute_type(parsed_cmd, &mut stdout)
-            }
-            Command::Builtin(BuiltinCommands::Pwd, _) => pwd::execute_pwd(),
             // External commands
             Command::External(external_cmd) => {
                 external::execute_external_command(external_cmd)

@@ -1,9 +1,9 @@
 use crate::error::{Result, ShellError};
 use crate::parser::lexer::Token;
-use crate::parser::{Descriptor, Redirection, RedirectionType};
 use std::iter::Peekable;
 use std::mem;
 use std::vec::IntoIter;
+use crate::utils::{Descriptor, Redirection, RedirectionType};
 
 #[derive(Debug, Default)]
 pub struct ParsedCommand {
@@ -36,6 +36,7 @@ impl Parser {
             match token {
                 Token::Word(word) => self.parse_word(word),
                 Token::RedirectOut(desc) => self.parse_redirect(desc, RedirectionType::Output)?,
+                Token::RedirectAppend(desc) => self.parse_redirect(desc, RedirectionType::Append)?,
                 Token::RedirectIn(desc) => self.parse_redirect(desc, RedirectionType::Input)?,
                 _ => {
                     // NOT IMPLEMENTED YET.
@@ -59,7 +60,7 @@ impl Parser {
         descriptor: Descriptor,
         redirection_type: RedirectionType,
     ) -> Result<()> {
-        // We hit a `>`. The VERY NEXT token MUST be a Word (the filename).
+        // We hit a `>`, `>>`, or `<`. The VERY NEXT token MUST be a Word (the filename).
         // We consume it immediately using `next()`.
         match self.tokens.next() {
             Some(Token::Word(filename)) => {
@@ -74,6 +75,7 @@ impl Parser {
                 let redir_symbol = match redirection_type {
                     RedirectionType::Input => "<",
                     RedirectionType::Output => ">",
+                    RedirectionType::Append => ">>",
                 };
                 Err(ShellError::SyntaxError(format!(
                     "expected file name after {}",

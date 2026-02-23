@@ -1,19 +1,28 @@
 use crate::error::{Result, ShellError};
-use std::process::Command;
+use crate::parser::ParsedCommand;
+use crate::utils::redirection::ResolvedRedirections;
+use std::process::{Command, Stdio};
 
-pub fn execute_clear() -> Result<()> {
+pub fn execute_clear(parsed_cmd: &ParsedCommand) -> Result<()> {
     // Clear the terminal screen
     // This is a simple implementation that works on Unix-like systems and Windows
-    let status = if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .args(&["/C", "cls"])
-            .status()
-            .map_err(ShellError::IoError)?
+    let mut cmd = if cfg!(target_os = "windows") {
+        let mut c = Command::new("cmd");
+        c.args(&["/C", "cls"]);
+        c
     } else {
         Command::new("clear")
-            .status()
-            .map_err(ShellError::IoError)?
     };
+
+    let resolved = ResolvedRedirections::resolve(parsed_cmd)?;
+    if let Some(stdout) = resolved.stdout {
+        cmd.stdout(Stdio::from(stdout));
+    }
+    if let Some(stderr) = resolved.stderr {
+        cmd.stderr(Stdio::from(stderr));
+    }
+
+    let status = cmd.status().map_err(ShellError::IoError)?;
 
     if !status.success() {
         return Err(ShellError::ExitWithStatus {

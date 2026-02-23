@@ -1,7 +1,7 @@
 use crate::error::{Result, ShellError};
-use crate::parser::Descriptor;
 use std::mem;
 use std::str::Chars;
+use crate::utils::Descriptor;
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
@@ -11,6 +11,7 @@ pub enum Token {
     Background,              // &
     And,                     // &&
     RedirectOut(Descriptor), // >
+    RedirectAppend(Descriptor), // >>
     RedirectIn(Descriptor),  // <
 }
 
@@ -77,7 +78,15 @@ impl<'a> Lexer<'a> {
             '"' => self.state = LexerState::DoubleQuote,
             '\\' => self.state = LexerState::Escape(Box::new(LexerState::Normal)),
             '0' | '1' | '2' => self.handle_descriptor(c),
-            '>' => self.flush_current_word_then(Token::RedirectOut(Descriptor::Stdout)),
+            '>' => {
+                self.flush_current_word();
+                if let Some('>') = self.chars.clone().next() {
+                    self.chars.next();
+                    self.tokens.push(Token::RedirectAppend(Descriptor::Stdout));
+                } else {
+                    self.tokens.push(Token::RedirectOut(Descriptor::Stdout));
+                }
+            }
             '<' => self.flush_current_word_then(Token::RedirectIn(Descriptor::Stdout)),
             '|' => {
                 self.flush_current_word();
@@ -156,7 +165,12 @@ impl<'a> Lexer<'a> {
     fn handle_descriptor(&mut self, c: char) {
         if let Some('>') = self.chars.clone().next() {
             self.chars.next();
-            self.flush_current_word_then(Token::RedirectOut(c.into()));
+            if let Some('>') = self.chars.clone().next() {
+                self.chars.next();
+                self.flush_current_word_then(Token::RedirectAppend(c.into()));
+            } else {
+                self.flush_current_word_then(Token::RedirectOut(c.into()));
+            }
         } else if let Some('<') = self.chars.clone().next() {
             self.chars.next();
             self.flush_current_word_then(Token::RedirectIn(c.into()));
