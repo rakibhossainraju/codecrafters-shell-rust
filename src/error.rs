@@ -1,3 +1,4 @@
+use rustyline::error::ReadlineError;
 use std::io;
 use thiserror::Error;
 
@@ -30,6 +31,9 @@ pub enum ShellError {
 
     #[error("cd: {0}: No such file or directory")]
     CdError(String),
+
+    #[error("readline error: {0}")]
+    Readline(#[from] ReadlineError),
 }
 
 pub type Result<T> = std::result::Result<T, ShellError>;

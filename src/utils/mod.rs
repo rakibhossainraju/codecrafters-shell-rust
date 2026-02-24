@@ -1,6 +1,6 @@
 pub mod path;
-mod utils;
 pub mod redirection;
+mod utils;
 
 pub use redirection::*;
 pub use utils::*;

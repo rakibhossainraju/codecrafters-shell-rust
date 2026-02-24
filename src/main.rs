@@ -1,10 +1,12 @@
 #![allow(dead_code, unused_variables)]
 
 mod commands;
+mod editor;
 mod error;
 mod parser;
 mod utils;
 
+use crate::editor::TerminalEditor;
 use crate::parser::{Lexer, Parser};
 use commands::{BuiltinCommands, Command};
 
@@ -14,7 +16,15 @@ fn main() {
         utils::print_initial_prompt();
 
         // Read user input and trim trailing whitespace
-        let user_input = utils::read_user_command();
+        let mut editor = TerminalEditor::new();
+        let user_input = match editor.read_line() {
+            Ok(input) => input,
+            Err(e) => {
+                eprintln!("{}", e);
+                continue;
+            }
+        };
+
         if user_input.is_empty() {
             continue;
         }
