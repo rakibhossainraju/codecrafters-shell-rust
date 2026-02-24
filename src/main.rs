@@ -13,9 +13,8 @@ use commands::{BuiltinCommands, Command};
 use rustyline::error::ReadlineError;
 
 fn main() {
+    let mut editor = TerminalEditor::new();
     loop {
-        // Read user input and trim trailing whitespace
-        let mut editor = TerminalEditor::new();
         let user_input = match editor.read_line() {
             Ok(input) => {
                 if input.is_empty() {
