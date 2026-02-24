@@ -6,13 +6,13 @@ use crate::utils::Descriptor;
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Word(String),
-    Pipe,                    // |
-    Or,                      // ||
-    Background,              // &
-    And,                     // &&
-    RedirectOut(Descriptor), // >
+    Pipe,                       // |
+    Or,                         // ||
+    Background,                 // &
+    And,                        // &&
+    RedirectOut(Descriptor),    // >
     RedirectAppend(Descriptor), // >>
-    RedirectIn(Descriptor),  // <
+    RedirectIn(Descriptor),     // <
 }
 
 #[derive(Debug, PartialEq)]

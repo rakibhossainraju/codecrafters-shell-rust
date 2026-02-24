@@ -3,6 +3,7 @@ use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::{Context, Helper};
+use crate::commands::BUILTIN_COMMANDS;
 
 pub struct EditorHelper;
 
@@ -21,24 +22,26 @@ impl Completer for EditorHelper {
 
     fn complete(
         &self,
-        _line: &str,
-        _pos: usize,
+        line: &str,
+        pos: usize,
         _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
-        let candidates: Vec<Pair> = Vec::new();
-        // TODO: autocomplete
-        // `line` is what the user has typed so far (e.g., "ech")
-        // `pos` is where their cursor currently is.
+        let mut candidates: Vec<Pair> = Vec::new();
 
-        // 1. Check if the line matches the beginning of "echo" or "exit".
-        // 2. If it does, create a Pair and push it to candidates:
-        //    Pair {
-        //        display: "echo".to_string(),
-        //        replacement: "echo ".to_string() // <-- Notice the trailing space!
-        //    }
+        let input = line[..pos].trim_end();
 
-        // The '0' means we are replacing the string starting from index 0 of the input.
+        if input.is_empty() {
+            return Ok((0, candidates));
+        }
 
+        for builtin in BUILTIN_COMMANDS {
+            if builtin.starts_with(input) {
+                candidates.push(Pair {
+                    display: builtin.to_string(),
+                    replacement: format!("{} ", builtin),
+                });
+            }
+        }
         Ok((0, candidates))
     }
 }

@@ -10,7 +10,7 @@ pub struct TerminalEditor {
 impl TerminalEditor {
     pub fn new() -> Self {
         let mut rl = Editor::new().expect("Failed to initialize editor");
-        rl.set_helper(Some(EditorHelper));
+        rl.set_helper(Some(EditorHelper {}));
         TerminalEditor { rl }
     }
 
