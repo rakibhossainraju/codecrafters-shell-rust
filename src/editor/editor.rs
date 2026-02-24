@@ -1,7 +1,7 @@
 use crate::editor::EditorHelper;
 use crate::error::Result;
-use rustyline::history::DefaultHistory;
 use rustyline::Editor;
+use rustyline::history::DefaultHistory;
 
 pub struct TerminalEditor {
     rl: Editor<EditorHelper, DefaultHistory>,

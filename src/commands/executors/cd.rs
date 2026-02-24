@@ -1,7 +1,7 @@
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
-use std::{env, fs};
 use std::io::Write;
+use std::{env, fs};
 
 pub fn execute_cd(parsed_cmd: &ParsedCommand, _: &mut dyn Write) -> Result<()> {
     // 1. Get the raw path string, defaulting to "~" if empty

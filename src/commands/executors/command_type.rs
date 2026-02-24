@@ -1,8 +1,8 @@
-use std::io::Write;
 use crate::commands::BuiltinCommands;
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
 use crate::utils::path::get_executable_path;
+use std::io::Write;
 
 /// Execute the type builtin command
 /// Shows information about a command (builtin or external)

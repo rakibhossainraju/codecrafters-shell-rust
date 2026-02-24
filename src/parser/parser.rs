@@ -1,9 +1,9 @@
 use crate::error::{Result, ShellError};
 use crate::parser::lexer::Token;
+use crate::utils::{Descriptor, Redirection, RedirectionType};
 use std::iter::Peekable;
 use std::mem;
 use std::vec::IntoIter;
-use crate::utils::{Descriptor, Redirection, RedirectionType};
 
 #[derive(Debug, Default)]
 pub struct ParsedCommand {
@@ -36,7 +36,9 @@ impl Parser {
             match token {
                 Token::Word(word) => self.parse_word(word),
                 Token::RedirectOut(desc) => self.parse_redirect(desc, RedirectionType::Output)?,
-                Token::RedirectAppend(desc) => self.parse_redirect(desc, RedirectionType::Append)?,
+                Token::RedirectAppend(desc) => {
+                    self.parse_redirect(desc, RedirectionType::Append)?
+                }
                 Token::RedirectIn(desc) => self.parse_redirect(desc, RedirectionType::Input)?,
                 _ => {
                     // NOT IMPLEMENTED YET.

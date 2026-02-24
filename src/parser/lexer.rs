@@ -1,7 +1,7 @@
 use crate::error::{Result, ShellError};
+use crate::utils::Descriptor;
 use std::mem;
 use std::str::Chars;
-use crate::utils::Descriptor;
 
 #[derive(Debug, PartialEq)]
 pub enum Token {

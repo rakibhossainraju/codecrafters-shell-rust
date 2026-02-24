@@ -1,10 +1,10 @@
-use crate::error::{Result, ShellError};
-use crate::parser::ParsedCommand;
-use crate::utils::redirection::{ResolvedRedirections, IoStreams};
 use crate::commands::{
     BuiltinCommands, ExternalCommand,
     executors::{cd, clear, command_type, echo, external, help, pwd},
 };
+use crate::error::{Result, ShellError};
+use crate::parser::ParsedCommand;
+use crate::utils::redirection::{IoStreams, ResolvedRedirections};
 
 pub enum Command {
     Builtin(BuiltinCommands, ParsedCommand),
@@ -38,15 +38,15 @@ impl Command {
                     BuiltinCommands::Clear => clear::execute_clear(parsed_cmd),
                     BuiltinCommands::Echo => echo::execute_echo(parsed_cmd, &mut streams.stdout),
                     BuiltinCommands::Help => help::execute_help(&mut streams.stdout),
-                    BuiltinCommands::Type => command_type::execute_type(parsed_cmd, &mut streams.stdout),
+                    BuiltinCommands::Type => {
+                        command_type::execute_type(parsed_cmd, &mut streams.stdout)
+                    }
                     BuiltinCommands::Pwd => pwd::execute_pwd(&mut streams.stdout),
                     BuiltinCommands::Exit => Ok(()),
                 }
-            },
+            }
             // External commands
-            Command::External(external_cmd) => {
-                external::execute_external_command(external_cmd)
-            },
+            Command::External(external_cmd) => external::execute_external_command(external_cmd),
         }
     }
 }

@@ -33,3 +33,39 @@ pub fn get_executable_path(cmd_name: &str) -> Option<PathBuf> {
     }
     None
 }
+
+pub fn get_executables_paths() -> Vec<PathBuf> {
+    get_os_paths()
+        .into_iter()
+        .flat_map(|paths| {
+            paths.into_iter().flat_map(|dir| {
+                dir.read_dir().ok().into_iter().flat_map(|entries| {
+                    entries.filter_map(|entry| {
+                        entry.ok().and_then(|e| {
+                            let path = e.path();
+                            if is_file_executable(&path) {
+                                Some(path)
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                })
+            })
+        })
+        .collect()
+}
+
+pub fn get_executable_names() -> Vec<String> {
+    let mut paths = get_executables_paths()
+        .into_iter()
+        .filter_map(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .map(|s| s.to_string())
+        })
+        .collect::<Vec<String>>();
+    paths.sort();
+    paths.dedup(); // Remove duplicates after sorting
+    paths
+}

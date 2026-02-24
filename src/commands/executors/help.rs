@@ -1,5 +1,5 @@
-use std::io::Write;
 use crate::error::Result;
+use std::io::Write;
 
 /// Execute the help builtin command
 pub fn execute_help(stdout: &mut dyn Write) -> Result<()> {

@@ -1,7 +1,7 @@
+use crate::error::{Result, ShellError};
+use crate::parser::ParsedCommand;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
-use crate::parser::ParsedCommand;
-use crate::error::{Result, ShellError};
 
 #[derive(Debug, PartialEq)]
 pub enum Descriptor {
@@ -49,26 +49,19 @@ impl ResolvedRedirections {
 
         for redirect in &parsed_cmd.redirects {
             let file = match redirect.redirection_type {
-                RedirectionType::Output => {
-                    OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .truncate(true)
-                        .open(&redirect.file)
-                }
-                RedirectionType::Append => {
-                    OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .append(true)
-                        .open(&redirect.file)
-                }
-                RedirectionType::Input => {
-                    OpenOptions::new()
-                        .read(true)
-                        .open(&redirect.file)
-                }
-            }.map_err(|e| {
+                RedirectionType::Output => OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&redirect.file),
+                RedirectionType::Append => OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .append(true)
+                    .open(&redirect.file),
+                RedirectionType::Input => OpenOptions::new().read(true).open(&redirect.file),
+            }
+            .map_err(|e| {
                 eprintln!("shell: {}: {}", redirect.file, e);
                 ShellError::IoError(e)
             })?;
@@ -108,6 +101,10 @@ impl IoStreams {
             Some(f) => Box::new(f),
             None => Box::new(io::stdin()),
         };
-        Self { stdout, stderr, stdin }
+        Self {
+            stdout,
+            stderr,
+            stdin,
+        }
     }
 }

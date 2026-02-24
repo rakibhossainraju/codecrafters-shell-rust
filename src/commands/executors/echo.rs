@@ -1,6 +1,6 @@
-use std::io::Write;
 use crate::error::Result;
 use crate::parser::ParsedCommand;
+use std::io::Write;
 
 /// Execute the echo builtin command
 pub fn execute_echo(parsed_cmd: &ParsedCommand, stdout: &mut dyn Write) -> Result<()> {
