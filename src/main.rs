@@ -23,7 +23,7 @@ fn main() {
                 input
             }
             Err(ShellError::Readline(ReadlineError::Eof)) => break,
-            Err(ShellError::Readline(ReadlineError::Interrupted)) => break,
+            Err(ShellError::Readline(ReadlineError::Interrupted)) => continue,
             Err(e) => {
                 eprintln!("{}", e);
                 continue;
