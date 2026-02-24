@@ -7,27 +7,29 @@ mod parser;
 mod utils;
 
 use crate::editor::TerminalEditor;
+use crate::error::ShellError;
 use crate::parser::{Lexer, Parser};
 use commands::{BuiltinCommands, Command};
+use rustyline::error::ReadlineError;
 
 fn main() {
     loop {
-        // Display the prompt and ensure it appears immediately before waiting for input
-        utils::print_initial_prompt();
-
         // Read user input and trim trailing whitespace
         let mut editor = TerminalEditor::new();
         let user_input = match editor.read_line() {
-            Ok(input) => input,
+            Ok(input) => {
+                if input.is_empty() {
+                    continue;
+                }
+                input
+            }
+            Err(ShellError::Readline(ReadlineError::Eof)) => break,
+            Err(ShellError::Readline(ReadlineError::Interrupted)) => break,
             Err(e) => {
                 eprintln!("{}", e);
                 continue;
             }
         };
-
-        if user_input.is_empty() {
-            continue;
-        }
 
         let tokens = match Lexer::tokenizer(&user_input) {
             Ok(tokens) => tokens,
