@@ -38,6 +38,9 @@ impl Completer for EditorHelper {
         if candidates.is_empty() {
             candidates.extend(self.find_external_commands(input));
         }
+        if candidates.len() == 1 {
+            candidates[0].replacement.push(' ');
+        }
 
         Ok((0, candidates))
     }
@@ -50,7 +53,7 @@ impl EditorHelper {
             .filter(|&cmd| cmd.starts_with(input))
             .map(|&cmd| Pair {
                 display: cmd.to_string(),
-                replacement: format!("{} ", cmd),
+                replacement: format!("{}", cmd),
             })
             .collect()
     }
@@ -61,7 +64,7 @@ impl EditorHelper {
             .filter(|&cmd| cmd.starts_with(input))
             .map(|cmd| Pair {
                 display: cmd.clone(),
-                replacement: format!("{} ", cmd),
+                replacement: format!("{}", cmd),
             })
             .collect()
     }

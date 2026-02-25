@@ -1,7 +1,7 @@
 use crate::editor::EditorHelper;
 use crate::error::Result;
-use rustyline::Editor;
 use rustyline::history::DefaultHistory;
+use rustyline::{CompletionType, Config, Editor};
 
 pub struct TerminalEditor {
     rl: Editor<EditorHelper, DefaultHistory>,
@@ -9,8 +9,11 @@ pub struct TerminalEditor {
 
 impl TerminalEditor {
     pub fn new() -> Self {
-        let mut rl = Editor::new().expect("Failed to initialize editor");
-        rl.set_helper(Some(EditorHelper {}));
+        let config = Config::builder()
+            .completion_type(CompletionType::List)
+            .build();
+        let mut rl = Editor::with_config(config).expect("Failed to initialize editor");
+        rl.set_helper(Some(EditorHelper));
         TerminalEditor { rl }
     }
 
