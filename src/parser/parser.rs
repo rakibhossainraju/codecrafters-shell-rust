@@ -4,7 +4,7 @@ use crate::utils::{Descriptor, Redirection, RedirectionType};
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ParsedCommand {
     pub cmd: String,
     pub args: Vec<String>,

@@ -3,7 +3,7 @@ use crate::parser::ParsedCommand;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Descriptor {
     Stdin,
     Stdout,
@@ -21,14 +21,14 @@ impl From<char> for Descriptor {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RedirectionType {
     Input,
     Output,
     Append,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Redirection {
     pub descriptor: Descriptor,
     pub file: String,

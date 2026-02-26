@@ -1,4 +1,4 @@
-#![allow(dead_code, unused_variables)]
+#![allow(dead_code, unused_variables, unused_imports)]
 
 mod commands;
 mod editor;
@@ -9,7 +9,6 @@ mod utils;
 use crate::editor::TerminalEditor;
 use crate::error::ShellError;
 use crate::parser::{Lexer, Parser};
-use commands::{BuiltinCommands, Command};
 use rustyline::error::ReadlineError;
 
 fn main() {
@@ -37,31 +36,17 @@ fn main() {
                 continue;
             }
         };
-
-        let parsed_cmd = match Parser::parser(tokens) {
-            Ok(cmd) => cmd,
+        let ast = match Parser::parser(tokens) {
+            Ok(ast_note) => ast_note,
             Err(e) => {
                 eprintln!("{}", e);
                 continue;
             }
         };
-
-        let cmd = match Command::resolve(parsed_cmd) {
-            Ok(cmd) => cmd,
-            Err(e) => {
-                eprintln!("{}", e);
-                continue;
-            }
-        };
-
-        // Check for exit before executing (to break the loop)
-        if matches!(cmd, Command::Builtin(BuiltinCommands::Exit, _)) {
-            break;
-        }
-
-        // Execute the command with remaining arguments
-        if let Err(e) = cmd.execute() {
-            eprintln!("{}", e);
+        match commands::execute_ast(ast) {
+            Ok(_) => (),
+            Err(ShellError::ExitOut) => break,
+            Err(e) => eprintln!("{}", e),
         }
     }
 }

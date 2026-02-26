@@ -34,6 +34,9 @@ pub enum ShellError {
 
     #[error("readline error: {0}")]
     Readline(#[from] ReadlineError),
+
+    #[error("exit")]
+    ExitOut,
 }
 
 pub type Result<T> = std::result::Result<T, ShellError>;
