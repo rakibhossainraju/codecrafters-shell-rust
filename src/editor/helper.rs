@@ -1,10 +1,10 @@
 use crate::commands::BUILTIN_COMMANDS;
 use crate::utils::get_executable_names;
 use rustyline::completion::{Completer, Pair};
-use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
-use rustyline::validate::Validator;
 use rustyline::{Context, Helper};
+use rustyline::highlight::Highlighter;
+use rustyline::validate::Validator;
 
 pub struct EditorHelper;
 
