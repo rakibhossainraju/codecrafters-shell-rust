@@ -13,6 +13,8 @@ pub fn execute_pipeline(cmds: Vec<ParsedCommand>) -> Result<()> {
             None => return Err(ShellError::CommandNotFound(parsed_cmd.cmd)),
         };
         let mut os_cmd = OsCommand::new(&external_cmd.path);
+        
+        os_cmd.args(&external_cmd.ast.args);
 
         if let Some(stdout) = previous_stdout.take() {
             os_cmd.stdin(Stdio::from(stdout));
