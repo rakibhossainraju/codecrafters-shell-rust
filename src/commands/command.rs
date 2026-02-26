@@ -1,3 +1,4 @@
+use std::io::Write;
 use crate::commands::{
     BuiltinCommands, ExternalCommand,
     executors::{cd, clear, command_type, echo, external, help, pwd},
@@ -28,20 +29,24 @@ impl Command {
             .ok_or_else(|| ShellError::CommandNotFound(cmd_name))
     }
 
-    pub fn execute(&self) -> Result<()> {
+    pub fn execute<'a>(&self, stdin: Option<Box<dyn Write + 'a>>) -> Result<()> {
         match self {
             Command::Builtin(builtin, parsed_cmd) => {
-                let resolved = ResolvedRedirections::resolve(parsed_cmd)?;
-                let mut streams = IoStreams::from_resolved(resolved);
+                let mut stdout = if let Some(stdin) = stdin {
+                    stdin
+                } else { 
+                    let resolved = ResolvedRedirections::resolve(parsed_cmd)?;
+                    IoStreams::from_resolved(resolved).stdout
+                };
                 match builtin {
-                    BuiltinCommands::Cd => cd::execute_cd(parsed_cmd, &mut streams.stdout),
+                    BuiltinCommands::Cd => cd::execute_cd(parsed_cmd, &mut stdout),
                     BuiltinCommands::Clear => clear::execute_clear(parsed_cmd),
-                    BuiltinCommands::Echo => echo::execute_echo(parsed_cmd, &mut streams.stdout),
-                    BuiltinCommands::Help => help::execute_help(&mut streams.stdout),
+                    BuiltinCommands::Echo => echo::execute_echo(parsed_cmd, &mut stdout),
+                    BuiltinCommands::Help => help::execute_help(&mut stdout),
                     BuiltinCommands::Type => {
-                        command_type::execute_type(parsed_cmd, &mut streams.stdout)
+                        command_type::execute_type(parsed_cmd, &mut stdout)
                     }
-                    BuiltinCommands::Pwd => pwd::execute_pwd(&mut streams.stdout),
+                    BuiltinCommands::Pwd => pwd::execute_pwd(&mut stdout),
                     BuiltinCommands::Exit => Ok(()),
                 }
             }
