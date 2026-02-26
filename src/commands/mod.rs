@@ -21,7 +21,7 @@ pub fn execute_ast(ast: ASTNode) -> Result<()> {
             }
 
             // Execute the command with remaining arguments
-            cmd.execute(None)?;
+            cmd.execute(None, None)?;
             // If we get here, the command executed successfully
             Ok(())
         }
