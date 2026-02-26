@@ -37,18 +37,14 @@ impl Command {
         match self {
             Command::Builtin(builtin, parsed_cmd) => {
                 let resolved = ResolvedRedirections::resolve(parsed_cmd)?;
-                let io_streams = IoStreams::from_resolved(resolved);
 
-                let mut stdin = if let Some(in_stream) = input {
-                    in_stream
-                } else {
-                    io_streams.stdin
+                let mut stdin: Box<dyn Read> = match resolved.stdin {
+                    Some(file) => Box::new(file),
+                    None => input.unwrap_or_else(|| Box::new(std::io::stdin())),
                 };
-
-                let mut stdout = if let Some(out_stream) = output {
-                    out_stream
-                } else {
-                    io_streams.stdout
+                let mut stdout: Box<dyn Write> = match resolved.stdout {
+                    Some(file) => Box::new(file),
+                    None => output.unwrap_or_else(|| Box::new(std::io::stdout())),
                 };
 
                 match builtin {
