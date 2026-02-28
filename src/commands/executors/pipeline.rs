@@ -1,9 +1,10 @@
-use std::io::{self, Read, Write, Cursor};
 use crate::commands::{Command, ExternalCommand};
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
-use std::process::{Child, ChildStdout, Stdio};
+use crate::state::ShellState;
+use std::io::{self, Cursor, Read, Write};
 use std::mem;
+use std::process::{Child, ChildStdout, Stdio};
 
 /// Represents the output of a command that will be used as the input for the next command in the pipeline
 pub enum PipelineLink {
@@ -29,18 +30,20 @@ impl PipelineLink {
     }
 }
 
-pub struct Pipeline {
+pub struct Pipeline<'a> {
     commands: Vec<ParsedCommand>,
     children: Vec<Child>,
     previous_link: PipelineLink,
+    state: &'a mut ShellState, //Inject the state here.
 }
 
-impl Pipeline {
-    pub fn new(commands: Vec<ParsedCommand>) -> Self {
+impl<'a> Pipeline<'a> {
+    pub fn new(commands: Vec<ParsedCommand>, state: &'a mut ShellState) -> Self {
         Self {
             commands,
             children: Vec::new(),
             previous_link: PipelineLink::None,
+            state,
         }
     }
 
@@ -64,16 +67,16 @@ impl Pipeline {
 
     fn execute_builtin(&mut self, cmd: Command, is_last: bool) -> Result<()> {
         let stdin = mem::take(&mut self.previous_link).into_reader();
-        
+
         if !is_last {
-            // Builtin commands don't have a stdout we can pipe directly, 
+            // Builtin commands don't have a stdout we can pipe directly,
             // so we capture their output in a buffer for the next command.
             let mut buffer = Vec::new();
-            cmd.execute(stdin, Some(Box::new(&mut buffer)))?;
+            cmd.execute(stdin, Some(Box::new(&mut buffer)), self.state)?;
             self.previous_link = PipelineLink::Buffer(buffer);
         } else {
             // Last command: write directly to stdout
-            cmd.execute(stdin, Some(Box::new(io::stdout())))?;
+            cmd.execute(stdin, Some(Box::new(io::stdout())), self.state)?;
             self.previous_link = PipelineLink::None;
         }
         Ok(())
@@ -114,14 +117,14 @@ impl Pipeline {
 
     fn wait_for_children(&mut self) -> Result<()> {
         for mut child in mem::take(&mut self.children) {
-            child.wait().map_err(|_| {
-                ShellError::WaitError(format!("pipeline child-id {}", child.id()))
-            })?;
+            child
+                .wait()
+                .map_err(|_| ShellError::WaitError(format!("pipeline child-id {}", child.id())))?;
         }
         Ok(())
     }
 }
 
-pub fn execute_pipeline(cmds: Vec<ParsedCommand>) -> Result<()> {
-    Pipeline::new(cmds).run()
+pub fn execute_pipeline(cmds: Vec<ParsedCommand>, state: &mut ShellState) -> Result<()> {
+    Pipeline::new(cmds, state).run()
 }

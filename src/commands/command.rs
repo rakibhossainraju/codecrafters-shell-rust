@@ -1,11 +1,13 @@
-use std::io::{Read, Write};
+use crate::commands::executors::history;
 use crate::commands::{
     BuiltinCommands, ExternalCommand,
     executors::{cd, clear, command_type, echo, external, help, pwd},
 };
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
+use crate::state::ShellState;
 use crate::utils::redirection::{IoStreams, ResolvedRedirections};
+use std::io::{Read, Write};
 
 pub enum Command {
     Builtin(BuiltinCommands, ParsedCommand),
@@ -33,6 +35,7 @@ impl Command {
         &self,
         input: Option<Box<dyn Read + 'a>>,
         output: Option<Box<dyn Write + 'a>>,
+        state: &mut ShellState,
     ) -> Result<()> {
         match self {
             Command::Builtin(builtin, parsed_cmd) => {
@@ -50,12 +53,17 @@ impl Command {
                 match builtin {
                     BuiltinCommands::Cd => cd::execute_cd(parsed_cmd, &mut stdin, &mut stdout),
                     BuiltinCommands::Clear => clear::execute_clear(parsed_cmd),
-                    BuiltinCommands::Echo => echo::execute_echo(parsed_cmd, &mut stdin, &mut stdout),
+                    BuiltinCommands::Echo => {
+                        echo::execute_echo(parsed_cmd, &mut stdin, &mut stdout)
+                    }
                     BuiltinCommands::Help => help::execute_help(&mut stdin, &mut stdout),
+                    BuiltinCommands::History => {
+                        history::execute_history(&mut stdin, &mut stdout, state)
+                    }
+                    BuiltinCommands::Pwd => pwd::execute_pwd(&mut stdin, &mut stdout),
                     BuiltinCommands::Type => {
                         command_type::execute_type(parsed_cmd, &mut stdin, &mut stdout)
                     }
-                    BuiltinCommands::Pwd => pwd::execute_pwd(&mut stdin, &mut stdout),
                     BuiltinCommands::Exit => Ok(()),
                 }
             }

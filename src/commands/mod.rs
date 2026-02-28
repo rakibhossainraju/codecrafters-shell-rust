@@ -6,11 +6,12 @@ mod external;
 use crate::commands::executors::pipeline::execute_pipeline;
 use crate::error::{Result, ShellError};
 use crate::parser::ASTNode;
+use crate::state::ShellState;
 pub use builtin::*;
 pub use command::*;
 pub use external::*;
 
-pub fn execute_ast(ast: ASTNode) -> Result<()> {
+pub fn execute_ast(ast: ASTNode, state: &mut ShellState) -> Result<()> {
     match ast {
         ASTNode::Simple(parsed_cmd) => {
             let cmd = Command::resolve(parsed_cmd)?;
@@ -21,12 +22,12 @@ pub fn execute_ast(ast: ASTNode) -> Result<()> {
             }
 
             // Execute the command with remaining arguments
-            cmd.execute(None, None)?;
+            cmd.execute(None, None, state)?;
             // If we get here, the command executed successfully
             Ok(())
         }
         ASTNode::Pipeline(cmds) => {
-            execute_pipeline(cmds)?;
+            execute_pipeline(cmds, state)?;
             Ok(())
         }
     }

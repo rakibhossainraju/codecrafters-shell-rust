@@ -4,21 +4,25 @@ mod commands;
 mod editor;
 mod error;
 mod parser;
+mod state;
 mod utils;
 
 use crate::editor::TerminalEditor;
 use crate::error::ShellError;
 use crate::parser::{Lexer, Parser};
+use crate::state::ShellState;
 use rustyline::error::ReadlineError;
 
 fn main() {
     let mut editor = TerminalEditor::new();
+    let mut state = ShellState::new();
     loop {
         let user_input = match editor.read_line() {
             Ok(input) => {
                 if input.is_empty() {
                     continue;
                 }
+                state.history.push(input.clone());
                 input
             }
             Err(ShellError::Readline(ReadlineError::Eof)) => break,
@@ -43,7 +47,7 @@ fn main() {
                 continue;
             }
         };
-        match commands::execute_ast(ast) {
+        match commands::execute_ast(ast, &mut state) {
             Ok(_) => (),
             Err(ShellError::ExitOut) => break,
             Err(e) => eprintln!("{}", e),

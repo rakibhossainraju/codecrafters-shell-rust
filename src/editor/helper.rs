@@ -1,10 +1,10 @@
 use crate::commands::BUILTIN_COMMANDS;
 use crate::utils::get_executable_names;
 use rustyline::completion::{Completer, Pair};
-use rustyline::hint::Hinter;
-use rustyline::{Context, Helper};
 use rustyline::highlight::Highlighter;
+use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
+use rustyline::{Context, Helper};
 
 pub struct EditorHelper;
 
@@ -50,8 +50,8 @@ impl EditorHelper {
     fn find_builtin_commands(&self, input: &str) -> Vec<Pair> {
         BUILTIN_COMMANDS
             .iter()
-            .filter(|&cmd| cmd.starts_with(input))
-            .map(|&cmd| Pair {
+            .filter(|(cmd, _)| cmd.starts_with(input))
+            .map(|(cmd, _)| Pair {
                 display: cmd.to_string(),
                 replacement: format!("{}", cmd),
             })
