@@ -1,9 +1,12 @@
 use crate::error::Result;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::io::Write;
+use std::fs::OpenOptions;
 
 pub struct ShellState {
     pub history: Vec<String>,
+    pub last_history_appended_index: usize,
     // In the future:
     // pub env_vars: HashMap<String, String>,
     // pub aliases: HashMap<String, String>,
@@ -13,6 +16,7 @@ impl Default for ShellState {
     fn default() -> Self {
         Self {
             history: Vec::new(),
+            last_history_appended_index: 0,
         }
     }
 }
@@ -45,6 +49,23 @@ impl ShellState {
         for cmd in &self.history {
             writeln!(file, "{}", cmd)?;
         }
+        Ok(())
+    }
+
+    pub fn append_history(&mut self, filename: &str) -> Result<()> {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(filename)?;
+
+        let start_index = self.last_history_appended_index;
+        let end_index = self.history.len();
+
+        for i in start_index..end_index {
+            writeln!(file, "{}", self.history[i])?;
+        }
+
+        self.last_history_appended_index = end_index;
         Ok(())
     }
 }

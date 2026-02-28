@@ -9,6 +9,7 @@ enum HistoryAction {
     Display(usize),
     Read(String),
     Write(String),
+    Append(String),
 }
 
 impl HistoryAction {
@@ -31,6 +32,12 @@ impl HistoryAction {
                     ShellError::InvalidArgument("Expected filename after -w".to_string())
                 })?;
                 Ok(HistoryAction::Write(filename.clone()))
+            }
+            "-a" => {
+                let filename = args.get(1).ok_or_else(|| {
+                    ShellError::InvalidArgument("Expected filename after -a".to_string())
+                })?;
+                Ok(HistoryAction::Append(filename.clone()))
             }
             arg => {
                 if args.len() > 1 {
@@ -66,6 +73,9 @@ pub fn execute_history(
         }
         HistoryAction::Write(filename) => {
             state.write_history(&filename)?;
+        }
+        HistoryAction::Append(filename) => {
+            state.append_history(&filename)?;
         }
     }
     Ok(())
