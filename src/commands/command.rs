@@ -58,7 +58,7 @@ impl Command {
                     }
                     BuiltinCommands::Help => help::execute_help(&mut stdin, &mut stdout),
                     BuiltinCommands::History => {
-                        history::execute_history(&mut stdin, &mut stdout, state)
+                        history::execute_history(parsed_cmd, &mut stdin, &mut stdout, state)
                     }
                     BuiltinCommands::Pwd => pwd::execute_pwd(&mut stdin, &mut stdout),
                     BuiltinCommands::Type => {

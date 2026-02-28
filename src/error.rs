@@ -37,6 +37,12 @@ pub enum ShellError {
 
     #[error("exit")]
     ExitOut,
+
+    #[error("fc: too many arguments")]
+    TooManyArguments,
+
+    #[error("fc: invalid argument: {0}")]
+    InvalidArgument(String),
 }
 
 pub type Result<T> = std::result::Result<T, ShellError>;
