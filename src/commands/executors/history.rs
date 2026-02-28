@@ -11,8 +11,16 @@ pub fn execute_history(
     stdout: &mut dyn Write,
     state: &mut ShellState,
 ) -> Result<()> {
+    if !parsed_cmd.args.is_empty() && parsed_cmd.args[0] == "-r" {
+        let filename = parsed_cmd.args.get(1).ok_or_else(|| {
+            ShellError::InvalidArgument("Expected filename after -r".to_string())
+        })?;
+        state.load_history(filename)?;
+        return Ok(());
+    }
+
     let size = if parsed_cmd.args.is_empty() {
-        DEFAULT_HISTORY_SIZE
+        DEFAULT_HISTORY_SIZE.min(state.history.len())
     } else {
         if parsed_cmd.args.len() > 1 {
             return Err(ShellError::TooManyArguments);
