@@ -22,4 +22,8 @@ impl TerminalEditor {
         let user_input = self.rl.readline("$ ")?;
         Ok(user_input.trim().to_string())
     }
+    
+    pub fn add_history_entry(&mut self, entry: &str) {
+        let _ = self.rl.add_history_entry(entry);
+    }   
 }

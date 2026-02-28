@@ -23,6 +23,7 @@ fn main() {
                     continue;
                 }
                 state.history.push(input.clone());
+                editor.add_history_entry(&input);
                 input
             }
             Err(ShellError::Readline(ReadlineError::Eof)) => break,
