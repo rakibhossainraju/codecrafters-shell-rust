@@ -38,4 +38,13 @@ impl ShellState {
         }
         Ok(())
     }
+
+    pub fn write_history(&self, filename: &str) -> Result<()> {
+        use std::io::Write;
+        let mut file = File::create(filename)?;
+        for cmd in &self.history {
+            writeln!(file, "{}", cmd)?;
+        }
+        Ok(())
+    }
 }
