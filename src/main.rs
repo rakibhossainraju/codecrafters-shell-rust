@@ -12,10 +12,22 @@ use crate::error::ShellError;
 use crate::parser::{Lexer, Parser};
 use crate::state::ShellState;
 use rustyline::error::ReadlineError;
+use std::env;
 
 fn main() {
     let mut editor = TerminalEditor::new();
     let mut state = ShellState::new();
+
+    let history_file = env::var("HISTFILE").ok();
+
+    if let Some(ref path) = history_file {
+        if let Ok(_) = state.load_history(path) {
+            for entry in &state.history {
+                editor.add_history_entry(entry);
+            }
+        }
+    }
+
     loop {
         let user_input = match editor.read_line() {
             Ok(input) => {
@@ -53,5 +65,9 @@ fn main() {
             Err(ShellError::ExitOut) => break,
             Err(e) => eprintln!("{}", e),
         }
+    }
+
+    if let Some(ref path) = history_file {
+        let _ = state.write_history(path);
     }
 }
