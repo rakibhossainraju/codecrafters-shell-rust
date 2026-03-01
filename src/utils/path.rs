@@ -1,4 +1,5 @@
 use std::env;
+use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
@@ -36,36 +37,27 @@ pub fn get_executable_path(cmd_name: &str) -> Option<PathBuf> {
 
 pub fn get_executables_paths() -> Vec<PathBuf> {
     get_os_paths()
+        .unwrap_or_default()
         .into_iter()
-        .flat_map(|paths| {
-            paths.into_iter().flat_map(|dir| {
-                dir.read_dir().ok().into_iter().flat_map(|entries| {
-                    entries.filter_map(|entry| {
-                        entry.ok().and_then(|e| {
-                            let path = e.path();
-                            if is_file_executable(&path) {
-                                Some(path)
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                })
-            })
-        })
+        .filter_map(|dir| fs::read_dir(dir).ok())
+        .flatten()
+        .filter_map(|entry| entry.ok())
+        .map(|e| e.path())
+        .filter(is_file_executable)
         .collect()
 }
 
 pub fn get_executable_names() -> Vec<String> {
-    let mut paths = get_executables_paths()
+    let mut names: Vec<String> = get_executables_paths()
         .into_iter()
         .filter_map(|path| {
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .map(|s| s.to_string())
+            path.file_name()?
+                .to_str()
+                .map(String::from)
         })
-        .collect::<Vec<String>>();
-    paths.sort();
-    paths.dedup(); // Remove duplicates after sorting
-    paths
+        .collect();
+    
+    names.sort();
+    names.dedup();
+    names
 }
