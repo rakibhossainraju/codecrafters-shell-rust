@@ -34,11 +34,15 @@ impl Completer for EditorHelper {
         let start_idx = line_up_to_cursor.rfind(' ').map(|i| i + 1).unwrap_or(0);
         let current_word = &line_up_to_cursor[start_idx..];
 
-        let mut candidates = if start_idx == 0 {
+        let candidates = if start_idx == 0 {
             // Completing the first word: could be a builtin or external command
             let mut cmds = self.find_builtin_commands(current_word);
             cmds.extend(self.find_external_commands(current_word));
             
+            // Deduplicate before checking length
+            cmds.sort_by(|a, b| a.display.cmp(&b.display));
+            cmds.dedup_by(|a, b| a.display == b.display);
+
             // If there's only one command match, add a space
             if cmds.len() == 1 {
                 cmds[0].replacement.push(' ');
@@ -46,11 +50,11 @@ impl Completer for EditorHelper {
             cmds
         } else {
             // Completing subsequent words: assume it's a path
-            self.find_path_completions(current_word)
+            let mut paths = self.find_path_completions(current_word);
+            paths.sort_by(|a, b| a.display.cmp(&b.display));
+            paths.dedup_by(|a, b| a.display == b.display);
+            paths
         };
-
-        candidates.sort_by(|a, b| a.display.cmp(&b.display));
-        candidates.dedup_by(|a, b| a.display == b.display);
 
         Ok((start_idx, candidates))
     }
