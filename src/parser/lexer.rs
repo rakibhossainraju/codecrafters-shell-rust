@@ -1,5 +1,6 @@
 use crate::error::{Result, ShellError};
 use crate::utils::Descriptor;
+use std::iter::Peekable;
 use std::mem;
 use std::str::Chars;
 
@@ -23,7 +24,7 @@ enum LexerState {
     Escape(Box<LexerState>), // optional for remembering previous state
 }
 pub struct Lexer<'a> {
-    chars: Chars<'a>,
+    chars: Peekable<Chars<'a>>,
     current_arg: String,
     state: LexerState,
     tokens: Vec<Token>,
@@ -39,7 +40,7 @@ impl<'a> Lexer<'a> {
 impl<'a> Lexer<'a> {
     fn new(input: &'a str) -> Self {
         Self {
-            chars: input.chars(),
+            chars: input.chars().peekable(),
             current_arg: String::new(),
             state: LexerState::Normal,
             tokens: Vec::new(),
@@ -80,7 +81,7 @@ impl<'a> Lexer<'a> {
             '0' | '1' | '2' => self.handle_descriptor(c),
             '>' => {
                 self.flush_current_word();
-                if let Some('>') = self.chars.clone().next() {
+                if self.chars.peek() == Some(&'>') {
                     self.chars.next();
                     self.tokens.push(Token::RedirectAppend(Descriptor::Stdout));
                 } else {
@@ -90,7 +91,7 @@ impl<'a> Lexer<'a> {
             '<' => self.flush_current_word_then(Token::RedirectIn(Descriptor::Stdout)),
             '|' => {
                 self.flush_current_word();
-                if let Some('|') = self.chars.clone().next() {
+                if self.chars.peek() == Some(&'|') {
                     self.chars.next();
                     self.tokens.push(Token::Or);
                 } else {
@@ -99,7 +100,7 @@ impl<'a> Lexer<'a> {
             }
             '&' => {
                 self.flush_current_word();
-                if let Some('&') = self.chars.clone().next() {
+                if self.chars.peek() == Some(&'&') {
                     self.chars.next();
                     self.tokens.push(Token::And);
                 } else {
@@ -163,15 +164,15 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_descriptor(&mut self, c: char) {
-        if let Some('>') = self.chars.clone().next() {
+        if self.chars.peek() == Some(&'>') {
             self.chars.next();
-            if let Some('>') = self.chars.clone().next() {
+            if self.chars.peek() == Some(&'>') {
                 self.chars.next();
                 self.flush_current_word_then(Token::RedirectAppend(c.into()));
             } else {
                 self.flush_current_word_then(Token::RedirectOut(c.into()));
             }
-        } else if let Some('<') = self.chars.clone().next() {
+        } else if self.chars.peek() == Some(&'<') {
             self.chars.next();
             self.flush_current_word_then(Token::RedirectIn(c.into()));
         } else {
