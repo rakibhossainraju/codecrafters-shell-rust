@@ -5,9 +5,13 @@ use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::{Context, Helper};
-use std::fs;
+use std::cell::RefCell;
+use std::io::Write;
+use std::{fs, io};
 
-pub struct EditorHelper;
+pub struct EditorHelper {
+    pub last_tab_state: RefCell<Option<(String, usize)>>,
+}
 
 impl Helper for EditorHelper {}
 impl Highlighter for EditorHelper {}
@@ -16,6 +20,14 @@ impl Hinter for EditorHelper {
     type Hint = String;
     fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
         None
+    }
+}
+
+impl EditorHelper {
+    pub fn new() -> Self {
+        EditorHelper {
+            last_tab_state: RefCell::new(None),
+        }
     }
 }
 
@@ -29,7 +41,16 @@ impl Completer for EditorHelper {
         _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
         let line_up_to_cursor = &line[..pos];
-        
+
+        // 1. Check if the user hit TAB twice in a row without typing anything else.
+        let current_state = (line_up_to_cursor.to_string(), pos);
+        let is_double_tab = {
+            let mut state = self.last_tab_state.borrow_mut();
+            let matched = state.as_ref() == Some(&current_state);
+            *state = Some(current_state);
+            matched
+        };
+
         // Find where the current word starts
         let start_idx = line_up_to_cursor.rfind(' ').map(|i| i + 1).unwrap_or(0);
         let current_word = &line_up_to_cursor[start_idx..];
@@ -38,7 +59,7 @@ impl Completer for EditorHelper {
             // Completing the first word: could be a builtin or external command
             let mut cmds = self.find_builtin_commands(current_word);
             cmds.extend(self.find_external_commands(current_word));
-            
+
             // Deduplicate before checking length
             cmds.sort_by(|a, b| a.display.cmp(&b.display));
             cmds.dedup_by(|a, b| a.display == b.display);
@@ -56,7 +77,31 @@ impl Completer for EditorHelper {
             paths
         };
 
-        Ok((start_idx, candidates))
+        // 2. If 0 or 1 match. let rustline handle it normally.
+        if candidates.len() <= 1 {
+            return Ok((start_idx, candidates));
+        }
+
+        // 3. -- MULTIPLE MATCHES INTERCEPT ---
+        if is_double_tab {
+            // Second <TAB>: Prinit the list manually
+            let output = candidates
+                .iter()
+                .map(|c| c.display.clone())
+                .collect::<Vec<_>>()
+                .join("  "); // Two spaces between matches as recommended
+            // Print a newline, the list, another newline, and manually redraw the prompt
+            print!("\n{}\n$ {}", output, line);
+            io::stdout().flush()?;
+        } else {
+            // First <TAB>: Ring the bell
+            print!("\x07");
+            io::stdout().flush().unwrap();
+        }
+
+        // Return empty candidates!
+        // This stops rustyline from doing its own formatting and ruining our beautiful output.
+        Ok((start_idx, vec![]))
     }
 }
 
@@ -89,7 +134,11 @@ impl EditorHelper {
             None => ("", input),
         };
 
-        let scan_path = if dir_to_scan.is_empty() { "." } else { dir_to_scan };
+        let scan_path = if dir_to_scan.is_empty() {
+            "."
+        } else {
+            dir_to_scan
+        };
         let mut candidates = Vec::new();
 
         if let Ok(entries) = fs::read_dir(scan_path) {
@@ -97,14 +146,20 @@ impl EditorHelper {
                 if let Ok(file_name) = entry.file_name().into_string() {
                     if file_name.starts_with(file_prefix) {
                         let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
-                        let replacement = format!("{}{}{}", 
-                            dir_to_scan, 
-                            file_name, 
+
+                        // ADD THE SLASH TO THE DISPLAY NAME IF IT'S A DIR
+                        let display_name =
+                            format!("{}{}", file_name, if is_dir { "/" } else { "" });
+
+                        let replacement = format!(
+                            "{}{}{}",
+                            dir_to_scan,
+                            file_name,
                             if is_dir { "/" } else { " " }
                         );
-                        
+
                         candidates.push(Pair {
-                            display: file_name,
+                            display: display_name,
                             replacement,
                         });
                     }

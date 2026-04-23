@@ -13,7 +13,7 @@ impl TerminalEditor {
             .completion_type(CompletionType::List)
             .build();
         let mut rl = Editor::with_config(config).expect("Failed to initialize editor");
-        rl.set_helper(Some(EditorHelper));
+        rl.set_helper(Some(EditorHelper::new()));
         TerminalEditor { rl }
     }
 
@@ -22,8 +22,8 @@ impl TerminalEditor {
         let user_input = self.rl.readline("$ ")?;
         Ok(user_input.trim().to_string())
     }
-    
+
     pub fn add_history_entry(&mut self, entry: &str) {
         let _ = self.rl.add_history_entry(entry);
-    }   
+    }
 }
