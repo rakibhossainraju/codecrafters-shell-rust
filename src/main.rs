@@ -1,16 +1,8 @@
-#![allow(dead_code, unused_variables, unused_imports)]
-
-mod commands;
-mod editor;
-mod error;
-mod parser;
-mod state;
-mod utils;
-
-use crate::editor::TerminalEditor;
-use crate::error::ShellError;
-use crate::parser::{Lexer, Parser};
-use crate::state::ShellState;
+use codecrafters_shell::editor::TerminalEditor;
+use codecrafters_shell::error::ShellError;
+use codecrafters_shell::parser::{Lexer, Parser};
+use codecrafters_shell::state::ShellState;
+use codecrafters_shell::commands;
 use rustyline::error::ReadlineError;
 use std::env;
 
