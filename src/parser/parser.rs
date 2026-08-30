@@ -141,3 +141,112 @@ impl Parser {
 
     // fn parse_background(&mut self) {}
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::Lexer;
+
+    fn parse(input: &str) -> Result<ASTNode> {
+        let tokens = Lexer::tokenizer(input).expect("lexing should succeed");
+        Parser::parser(tokens)
+    }
+
+    #[test]
+    fn parses_simple_command_with_args() {
+        let ast = parse("echo hello world").unwrap();
+        match ast {
+            ASTNode::Simple(cmd) => {
+                assert_eq!(cmd.cmd, "echo");
+                assert_eq!(cmd.args, vec!["hello".to_string(), "world".to_string()]);
+                assert!(cmd.redirects.is_empty());
+            }
+            other => panic!("expected Simple, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_pipeline_into_multiple_commands() {
+        let ast = parse("echo hi | tr a-z A-Z | wc -l").unwrap();
+        match ast {
+            ASTNode::Pipeline(cmds) => {
+                assert_eq!(cmds.len(), 3);
+                assert_eq!(cmds[0].cmd, "echo");
+                assert_eq!(cmds[1].cmd, "tr");
+                assert_eq!(cmds[1].args, vec!["a-z".to_string(), "A-Z".to_string()]);
+                assert_eq!(cmds[2].cmd, "wc");
+                assert_eq!(cmds[2].args, vec!["-l".to_string()]);
+            }
+            other => panic!("expected Pipeline, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_output_redirection() {
+        let ast = parse("echo hi > out.txt").unwrap();
+        match ast {
+            ASTNode::Simple(cmd) => {
+                assert_eq!(cmd.redirects.len(), 1);
+                assert_eq!(cmd.redirects[0].file, "out.txt");
+                assert_eq!(cmd.redirects[0].descriptor, Descriptor::Stdout);
+                assert_eq!(cmd.redirects[0].redirection_type, RedirectionType::Output);
+            }
+            other => panic!("expected Simple, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_append_and_input_and_stderr_redirection_together() {
+        let ast = parse("cmd 0< in.txt >> out.txt 2> err.txt").unwrap();
+        match ast {
+            ASTNode::Simple(cmd) => {
+                assert_eq!(cmd.redirects.len(), 3);
+                assert_eq!(cmd.redirects[0].redirection_type, RedirectionType::Input);
+                assert_eq!(cmd.redirects[0].descriptor, Descriptor::Stdin);
+                assert_eq!(cmd.redirects[1].redirection_type, RedirectionType::Append);
+                assert_eq!(cmd.redirects[1].descriptor, Descriptor::Stdout);
+                assert_eq!(cmd.redirects[2].redirection_type, RedirectionType::Output);
+                assert_eq!(cmd.redirects[2].descriptor, Descriptor::Stderr);
+            }
+            other => panic!("expected Simple, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn empty_command_is_a_syntax_error() {
+        assert!(parse("").is_err());
+    }
+
+    #[test]
+    fn trailing_pipe_is_a_syntax_error() {
+        let err = parse("echo hi |").unwrap_err();
+        assert!(err.to_string().contains("unexpected empty command"));
+    }
+
+    #[test]
+    fn leading_pipe_is_a_syntax_error() {
+        assert!(parse("| echo hi").is_err());
+    }
+
+    #[test]
+    fn redirect_missing_filename_is_a_syntax_error() {
+        let err = parse("echo hi >").unwrap_err();
+        assert!(err.to_string().contains("expected file name after >"));
+    }
+
+    /// Documents current (incomplete) behavior: `&&`/`||`/`&` are tokenized
+    /// but the parser has no And/Or/Background handling yet, so anything
+    /// after the first pipeline segment is silently dropped rather than
+    /// erroring or being executed.
+    #[test]
+    fn and_or_background_operators_silently_truncate_the_command() {
+        let ast = parse("echo a && echo b").unwrap();
+        match ast {
+            ASTNode::Simple(cmd) => {
+                assert_eq!(cmd.cmd, "echo");
+                assert_eq!(cmd.args, vec!["a".to_string()]);
+            }
+            other => panic!("expected Simple, got {:?}", other),
+        }
+    }
+}

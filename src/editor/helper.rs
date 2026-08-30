@@ -169,3 +169,97 @@ impl EditorHelper {
         candidates
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use tempfile::TempDir;
+
+    fn names(pairs: &[Pair]) -> Vec<String> {
+        let mut v: Vec<String> = pairs.iter().map(|p| p.display.clone()).collect();
+        v.sort();
+        v
+    }
+
+    #[test]
+    fn find_builtin_commands_matches_by_prefix() {
+        let helper = EditorHelper::new();
+        assert_eq!(names(&helper.find_builtin_commands("ec")), vec!["echo"]);
+        assert_eq!(
+            names(&helper.find_builtin_commands("")),
+            {
+                let mut all: Vec<String> =
+                    crate::commands::BUILTIN_COMMANDS.iter().map(|(n, _)| n.to_string()).collect();
+                all.sort();
+                all
+            }
+        );
+        assert!(helper.find_builtin_commands("zzz-nope").is_empty());
+    }
+
+    #[test]
+    fn find_external_commands_matches_only_whats_on_path() {
+        let dir = TempDir::new().unwrap();
+        let exe_path = dir.path().join("myfakecmd");
+        std::fs::write(&exe_path, "#!/bin/sh\nexit 0\n").unwrap();
+        let mut perms = std::fs::metadata(&exe_path).unwrap().permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
+        std::fs::set_permissions(&exe_path, perms).unwrap();
+
+        let original_path = env::var_os("PATH");
+        unsafe { env::set_var("PATH", dir.path()) };
+
+        let helper = EditorHelper::new();
+        let found = names(&helper.find_external_commands("myfake"));
+
+        match original_path {
+            Some(v) => unsafe { env::set_var("PATH", v) },
+            None => unsafe { env::remove_var("PATH") },
+        }
+
+        assert_eq!(found, vec!["myfakecmd".to_string()]);
+    }
+
+    #[test]
+    fn find_path_completions_lists_files_and_marks_directories() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("file_a.txt"), "").unwrap();
+        std::fs::create_dir(dir.path().join("subdir")).unwrap();
+
+        let original_cwd = env::current_dir().unwrap();
+        env::set_current_dir(dir.path()).unwrap();
+
+        let helper = EditorHelper::new();
+        let candidates = helper.find_path_completions("");
+
+        env::set_current_dir(original_cwd).unwrap();
+
+        let file_entry = candidates
+            .iter()
+            .find(|p| p.display == "file_a.txt")
+            .expect("file_a.txt should be found");
+        assert_eq!(file_entry.replacement, "file_a.txt ");
+
+        let dir_entry = candidates
+            .iter()
+            .find(|p| p.display == "subdir/")
+            .expect("subdir should be found and marked as a directory");
+        assert_eq!(dir_entry.replacement, "subdir/");
+    }
+
+    #[test]
+    fn find_path_completions_filters_by_prefix_within_a_directory() {
+        let dir = TempDir::new().unwrap();
+        std::fs::create_dir(dir.path().join("nested")).unwrap();
+        std::fs::write(dir.path().join("nested").join("apple.txt"), "").unwrap();
+        std::fs::write(dir.path().join("nested").join("banana.txt"), "").unwrap();
+
+        let helper = EditorHelper::new();
+        let prefix = format!("{}/a", dir.path().join("nested").display());
+        let candidates = helper.find_path_completions(&prefix);
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].display, "apple.txt");
+    }
+}

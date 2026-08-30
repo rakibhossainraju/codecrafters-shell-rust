@@ -180,3 +180,181 @@ impl<'a> Lexer<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tokenize(input: &str) -> Vec<Token> {
+        Lexer::tokenizer(input).expect("expected successful tokenization")
+    }
+
+    #[test]
+    fn tokenizes_plain_words() {
+        assert_eq!(
+            tokenize("echo hello world"),
+            vec![
+                Token::Word("echo".into()),
+                Token::Word("hello".into()),
+                Token::Word("world".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn collapses_extra_whitespace() {
+        assert_eq!(
+            tokenize("  echo    hi  "),
+            vec![Token::Word("echo".into()), Token::Word("hi".into())]
+        );
+    }
+
+    #[test]
+    fn single_quotes_are_fully_literal() {
+        // Nothing is special inside single quotes, not even backslash.
+        assert_eq!(
+            tokenize(r"echo 'a\ b  c'"),
+            vec![Token::Word("echo".into()), Token::Word(r"a\ b  c".into())]
+        );
+    }
+
+    #[test]
+    fn double_quotes_preserve_spacing_but_allow_escaping_quote_and_backslash() {
+        assert_eq!(
+            tokenize(r#"echo "say \"hi\" and \\ done""#),
+            vec![
+                Token::Word("echo".into()),
+                Token::Word(r#"say "hi" and \ done"#.into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn double_quotes_keep_unrecognized_escapes_literal() {
+        // Rule: inside double quotes only \" and \\ are actual escapes.
+        assert_eq!(
+            tokenize(r#"echo "a\nb""#),
+            vec![Token::Word("echo".into()), Token::Word(r"a\nb".into())]
+        );
+    }
+
+    #[test]
+    fn unquoted_backslash_escapes_next_char_and_is_consumed() {
+        assert_eq!(
+            tokenize(r"echo hello\ world"),
+            vec![Token::Word("echo".into()), Token::Word("hello world".into())]
+        );
+    }
+
+    #[test]
+    fn adjacent_quoted_and_unquoted_segments_merge_into_one_word() {
+        assert_eq!(
+            tokenize(r#"echo foo"bar"'baz'"#),
+            vec![Token::Word("echo".into()), Token::Word("foobarbaz".into())]
+        );
+    }
+
+    #[test]
+    fn recognizes_pipe_and_or_tokens() {
+        assert_eq!(
+            tokenize("a | b || c"),
+            vec![
+                Token::Word("a".into()),
+                Token::Pipe,
+                Token::Word("b".into()),
+                Token::Or,
+                Token::Word("c".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn recognizes_background_and_and_tokens() {
+        assert_eq!(
+            tokenize("a & b && c"),
+            vec![
+                Token::Word("a".into()),
+                Token::Background,
+                Token::Word("b".into()),
+                Token::And,
+                Token::Word("c".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn plain_redirect_out_and_append() {
+        assert_eq!(
+            tokenize("echo hi > out.txt"),
+            vec![
+                Token::Word("echo".into()),
+                Token::Word("hi".into()),
+                Token::RedirectOut(Descriptor::Stdout),
+                Token::Word("out.txt".into()),
+            ]
+        );
+        assert_eq!(
+            tokenize("echo hi >> out.txt"),
+            vec![
+                Token::Word("echo".into()),
+                Token::Word("hi".into()),
+                Token::RedirectAppend(Descriptor::Stdout),
+                Token::Word("out.txt".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn numeric_descriptor_redirects() {
+        assert_eq!(
+            tokenize("cmd 2> err.txt"),
+            vec![
+                Token::Word("cmd".into()),
+                Token::RedirectOut(Descriptor::Stderr),
+                Token::Word("err.txt".into()),
+            ]
+        );
+        assert_eq!(
+            tokenize("cmd 1>> out.txt"),
+            vec![
+                Token::Word("cmd".into()),
+                Token::RedirectAppend(Descriptor::Stdout),
+                Token::Word("out.txt".into()),
+            ]
+        );
+        assert_eq!(
+            tokenize("cmd 0< in.txt"),
+            vec![
+                Token::Word("cmd".into()),
+                Token::RedirectIn(Descriptor::Stdin),
+                Token::Word("in.txt".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn digit_not_followed_by_redirect_is_a_plain_word_char() {
+        assert_eq!(tokenize("echo 2plus2"), vec![
+            Token::Word("echo".into()),
+            Token::Word("2plus2".into()),
+        ]);
+    }
+
+    #[test]
+    fn unclosed_single_quote_is_a_syntax_error() {
+        let err = Lexer::tokenizer("echo 'unterminated").unwrap_err();
+        assert!(err.to_string().contains("unclosed single quote"));
+    }
+
+    #[test]
+    fn unclosed_double_quote_is_a_syntax_error() {
+        let err = Lexer::tokenizer(r#"echo "unterminated"#).unwrap_err();
+        assert!(err.to_string().contains("unclosed double quote"));
+    }
+
+    #[test]
+    fn trailing_backslash_is_a_syntax_error() {
+        let err = Lexer::tokenizer(r"echo trailing\").unwrap_err();
+        assert!(err.to_string().contains("unclosed escape sequence"));
+    }
+}
