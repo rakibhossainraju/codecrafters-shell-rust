@@ -1,6 +1,6 @@
 mod support;
 
-use support::{stdout, Sandbox};
+use support::{Sandbox, stdout};
 
 #[test]
 fn builtin_to_builtin_pipeline_only_the_last_stage_writes_to_real_stdout() {

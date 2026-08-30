@@ -1,8 +1,8 @@
+use codecrafters_shell::commands;
 use codecrafters_shell::editor::TerminalEditor;
 use codecrafters_shell::error::ShellError;
 use codecrafters_shell::parser::{Lexer, Parser};
 use codecrafters_shell::state::ShellState;
-use codecrafters_shell::commands;
 use rustyline::error::ReadlineError;
 use std::env;
 

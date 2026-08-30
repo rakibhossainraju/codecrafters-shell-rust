@@ -50,11 +50,7 @@ pub fn get_executables_paths() -> Vec<PathBuf> {
 pub fn get_executable_names() -> Vec<String> {
     let mut names: Vec<String> = get_executables_paths()
         .into_iter()
-        .filter_map(|path| {
-            path.file_name()?
-                .to_str()
-                .map(String::from)
-        })
+        .filter_map(|path| path.file_name()?.to_str().map(String::from))
         .collect();
 
     names.sort();

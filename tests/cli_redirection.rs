@@ -1,6 +1,6 @@
 mod support;
 
-use support::{stderr, stdout, Sandbox};
+use support::{Sandbox, stderr, stdout};
 
 #[test]
 fn output_redirect_creates_and_truncates_the_target_file() {

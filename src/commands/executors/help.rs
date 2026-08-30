@@ -1,6 +1,6 @@
+use crate::commands::BuiltinCommands;
 use crate::error::Result;
 use std::io::{Read, Write};
-use crate::commands::BuiltinCommands;
 
 /// Get the help text for a builtin command
 fn get_command_help(cmd: BuiltinCommands) -> &'static str {

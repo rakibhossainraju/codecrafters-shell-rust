@@ -242,7 +242,10 @@ mod tests {
     fn unquoted_backslash_escapes_next_char_and_is_consumed() {
         assert_eq!(
             tokenize(r"echo hello\ world"),
-            vec![Token::Word("echo".into()), Token::Word("hello world".into())]
+            vec![
+                Token::Word("echo".into()),
+                Token::Word("hello world".into())
+            ]
         );
     }
 
@@ -346,10 +349,10 @@ mod tests {
 
     #[test]
     fn digit_not_followed_by_redirect_is_a_plain_word_char() {
-        assert_eq!(tokenize("echo 2plus2"), vec![
-            Token::Word("echo".into()),
-            Token::Word("2plus2".into()),
-        ]);
+        assert_eq!(
+            tokenize("echo 2plus2"),
+            vec![Token::Word("echo".into()), Token::Word("2plus2".into()),]
+        );
     }
 
     #[test]

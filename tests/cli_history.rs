@@ -1,6 +1,6 @@
 mod support;
 
-use support::{stdout, Sandbox};
+use support::{Sandbox, stdout};
 
 #[test]
 fn history_with_no_args_shows_up_to_last_ten_entries_numbered() {

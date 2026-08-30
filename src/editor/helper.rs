@@ -186,15 +186,14 @@ mod tests {
     fn find_builtin_commands_matches_by_prefix() {
         let helper = EditorHelper::new();
         assert_eq!(names(&helper.find_builtin_commands("ec")), vec!["echo"]);
-        assert_eq!(
-            names(&helper.find_builtin_commands("")),
-            {
-                let mut all: Vec<String> =
-                    crate::commands::BUILTIN_COMMANDS.iter().map(|(n, _)| n.to_string()).collect();
-                all.sort();
-                all
-            }
-        );
+        assert_eq!(names(&helper.find_builtin_commands("")), {
+            let mut all: Vec<String> = crate::commands::BUILTIN_COMMANDS
+                .iter()
+                .map(|(n, _)| n.to_string())
+                .collect();
+            all.sort();
+            all
+        });
         assert!(helper.find_builtin_commands("zzz-nope").is_empty());
     }
 

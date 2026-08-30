@@ -1,6 +1,6 @@
 mod support;
 
-use support::{stderr, stdout, Sandbox};
+use support::{Sandbox, stderr, stdout};
 
 fn canon(p: &std::path::Path) -> String {
     std::fs::canonicalize(p).unwrap().display().to_string()
@@ -58,7 +58,10 @@ fn cd_expands_home_and_home_relative_paths() {
     assert_eq!(stdout(&out).trim_end(), canon(&sandbox.home_dir));
 
     let out = sandbox.run("cd ~/docs\npwd\n");
-    assert_eq!(stdout(&out).trim_end(), canon(&sandbox.home_dir.join("docs")));
+    assert_eq!(
+        stdout(&out).trim_end(),
+        canon(&sandbox.home_dir.join("docs"))
+    );
 }
 
 #[test]

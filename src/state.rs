@@ -1,8 +1,8 @@
 use crate::error::Result;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
-use std::io::Write;
 use std::fs::OpenOptions;
+use std::io::Write;
+use std::io::{BufRead, BufReader};
 
 pub struct ShellState {
     pub history: Vec<String>,

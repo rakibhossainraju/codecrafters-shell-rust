@@ -1,6 +1,6 @@
 mod support;
 
-use support::{stderr, stdout, Sandbox};
+use support::{Sandbox, stderr, stdout};
 
 #[test]
 fn single_quotes_preserve_literal_content() {
