@@ -40,6 +40,17 @@ fn stderr_descriptor_redirects_only_stderr() {
 }
 
 #[test]
+fn plain_stdin_redirect_feeds_a_file_into_an_external_command() {
+    // Regression test: bare `<` used to be tokenized with the wrong
+    // descriptor (Stdout instead of Stdin), which corrupted the command's
+    // actual stdout wiring instead of redirecting its input.
+    let sandbox = Sandbox::new();
+    sandbox.write_file("in.txt", "line one\nline two\n");
+    let out = sandbox.run("catit < in.txt\n");
+    assert_eq!(stdout(&out), "line one\nline two\n");
+}
+
+#[test]
 fn explicit_stdin_descriptor_feeds_a_file_into_an_external_command() {
     let sandbox = Sandbox::new();
     sandbox.write_file("in.txt", "line one\nline two\n");

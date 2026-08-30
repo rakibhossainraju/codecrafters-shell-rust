@@ -88,7 +88,7 @@ impl<'a> Lexer<'a> {
                     self.tokens.push(Token::RedirectOut(Descriptor::Stdout));
                 }
             }
-            '<' => self.flush_current_word_then(Token::RedirectIn(Descriptor::Stdout)),
+            '<' => self.flush_current_word_then(Token::RedirectIn(Descriptor::Stdin)),
             '|' => {
                 self.flush_current_word();
                 if self.chars.peek() == Some(&'|') {
@@ -300,6 +300,18 @@ mod tests {
                 Token::Word("hi".into()),
                 Token::RedirectAppend(Descriptor::Stdout),
                 Token::Word("out.txt".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn plain_redirect_in_uses_stdin_descriptor() {
+        assert_eq!(
+            tokenize("cmd < in.txt"),
+            vec![
+                Token::Word("cmd".into()),
+                Token::RedirectIn(Descriptor::Stdin),
+                Token::Word("in.txt".into()),
             ]
         );
     }
