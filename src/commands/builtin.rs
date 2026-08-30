@@ -48,3 +48,35 @@ impl Display for BuiltinCommands {
         Err(std::fmt::Error)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recognizes_every_registered_builtin_name() {
+        for (name, cmd) in BUILTIN_COMMANDS {
+            assert_eq!(BuiltinCommands::from_str(name), Some(*cmd));
+            assert!(BuiltinCommands::is_builtin_command(name));
+        }
+    }
+
+    #[test]
+    fn unknown_command_is_not_a_builtin() {
+        assert_eq!(BuiltinCommands::from_str("not-a-real-command"), None);
+        assert!(!BuiltinCommands::is_builtin_command("ls"));
+    }
+
+    #[test]
+    fn display_round_trips_through_the_lookup_table() {
+        for (name, cmd) in BUILTIN_COMMANDS {
+            assert_eq!(cmd.to_string(), *name);
+        }
+    }
+
+    #[test]
+    fn lookup_is_case_sensitive() {
+        assert_eq!(BuiltinCommands::from_str("ECHO"), None);
+        assert_eq!(BuiltinCommands::from_str("Echo"), None);
+    }
+}
