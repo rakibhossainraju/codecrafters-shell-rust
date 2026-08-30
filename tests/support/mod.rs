@@ -72,6 +72,12 @@ impl Sandbox {
         self.install_fake_bin("clear", "#!/bin/sh\nprintf 'CLEARED\\n'\n");
     }
 
+    /// Register an extra no-op executable on the sandboxed PATH, for tests
+    /// that need specific command names to exist (e.g. completion tests).
+    pub fn add_executable(&self, name: &str) {
+        self.install_fake_bin(name, "#!/bin/sh\nexit 0\n");
+    }
+
     fn install_fake_bin(&self, name: &str, contents: &str) {
         let path = self.bin_dir.join(name);
         fs::write(&path, contents).unwrap();
@@ -131,6 +137,31 @@ impl Sandbox {
     pub fn file_exists(&self, relative: &str) -> bool {
         self.path(relative).exists()
     }
+
+    /// Spawn the sandboxed shell attached to a real pseudo-terminal instead
+    /// of plain pipes.
+    ///
+    /// This matters specifically for tab-completion tests: rustyline only
+    /// engages its raw, key-by-key input handling (and thus only reacts to
+    /// an individual `\t` byte as "the user pressed Tab") when stdin is a
+    /// real tty. Plain `Sandbox::run` (piped stdin/stdout, `TERM=dumb`) never
+    /// exercises that path at all -- a literal tab byte just gets buffered
+    /// into the line like any other character. A pty is the only way to
+    /// black-box test completion behavior end-to-end.
+    pub fn spawn_pty(&self) -> rexpect::session::PtySession {
+        let mut cmd = Command::new(Self::shell_bin());
+        cmd.current_dir(&self.work_dir)
+            .env_clear()
+            .env("PATH", &self.bin_dir)
+            .env("HOME", &self.home_dir)
+            .env("HISTFILE", &self.histfile)
+            .env("TERM", "xterm-256color");
+
+        // Short timeout: everything here is local IPC that should resolve in
+        // milliseconds when correct. Keeps a failing/not-yet-implemented
+        // test's feedback fast instead of eating a long timeout every time.
+        rexpect::session::spawn_command(cmd, Some(2_000)).expect("spawn sandboxed shell under a pty")
+    }
 }
 
 /// Captured stdout with the `"$ "` prompt stripped out.
@@ -147,4 +178,26 @@ pub fn stdout(output: &Output) -> String {
 
 pub fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
+}
+
+/// Bell character rustyline writes to signal "multiple matches, can't
+/// extend the completion any further".
+pub const BELL: char = '\x07';
+
+/// Block until the next prompt shows up on a pty session.
+pub fn wait_for_prompt(session: &mut rexpect::session::PtySession) {
+    session.exp_string("$ ").unwrap();
+}
+
+/// Send `s` as if typed at the prompt and wait for it to be echoed back.
+pub fn type_str(session: &mut rexpect::session::PtySession, s: &str) {
+    session.send(s).unwrap();
+    session.flush().unwrap();
+    session.exp_string(s).unwrap();
+}
+
+/// Send a single Tab keypress.
+pub fn press_tab(session: &mut rexpect::session::PtySession) {
+    session.send("\t").unwrap();
+    session.flush().unwrap();
 }

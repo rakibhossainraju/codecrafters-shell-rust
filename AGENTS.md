@@ -107,6 +107,14 @@ or cwd outside its own throwaway directory:
 - Gotcha: `support::stdout()` strips the `"$ "` prompt that `rustyline` writes to real stdout on every
   `readline()` call (even for piped/non-tty input) — always assert through `support::stdout()`/`stderr()`,
   never on `Output.stdout` directly, or prompt noise will corrupt string-equality assertions.
+- Any feature that's about *terminal interaction itself* (tab completion, bell, live redraw, anything
+  gated on the input actually being a tty) cannot be tested through `sandbox.run()` — `rustyline` only
+  engages its raw, key-by-key input handling when stdin is a real tty, so a piped script never triggers
+  it at all. Use `sandbox.spawn_pty()` instead (see `tests/cli_tab_completion.rs` for the pattern), which
+  returns a `rexpect::session::PtySession` spawned in the same sandboxed dirs/env but attached to a real
+  pseudo-terminal. Send raw bytes with `.send()`/`.send_control()` + `.flush()`, assert on output with
+  `.exp_string()`/`.exp_char()`/`.exp_regex()`. `TERM` is set to `xterm-256color` for these (not `dumb`,
+  which disables interactive editing) — don't reuse `sandbox.run()`'s `TERM=dumb` assumption here.
 
 **Coverage expectations per feature**: cover the happy path AND the error path (bad redirect target,
 unknown command, syntax error, missing file) and assert the shell reports the error *and keeps running*
