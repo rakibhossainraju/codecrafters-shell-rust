@@ -77,31 +77,7 @@ impl Completer for EditorHelper {
             paths
         };
 
-        // 2. If 0 or 1 match. let rustline handle it normally.
-        if candidates.len() <= 1 {
-            return Ok((start_idx, candidates));
-        }
-
-        // 3. -- MULTIPLE MATCHES INTERCEPT ---
-        if is_double_tab {
-            // Second <TAB>: Prinit the list manually
-            let output = candidates
-                .iter()
-                .map(|c| c.display.clone())
-                .collect::<Vec<_>>()
-                .join("  "); // Two spaces between matches as recommended
-            // Print a newline, the list, another newline, and manually redraw the prompt
-            print!("\n{}\n$ {}", output, line);
-            io::stdout().flush()?;
-        } else {
-            // First <TAB>: Ring the bell
-            print!("\x07");
-            io::stdout().flush().unwrap();
-        }
-
-        // Return empty candidates!
-        // This stops rustyline from doing its own formatting and ruining our beautiful output.
-        Ok((start_idx, vec![]))
+        Ok((start_idx, candidates))
     }
 }
 
