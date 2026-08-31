@@ -10,5 +10,6 @@ rustyline = "17.0.2"
 thiserror = "1.0.38"                             # error handling
 
 [dev-dependencies]
+regex = "1.13.1"
 rexpect = "0.7.1"
 tempfile = "3.27.0"

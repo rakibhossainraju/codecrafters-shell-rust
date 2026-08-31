@@ -160,7 +160,8 @@ impl Sandbox {
         // Short timeout: everything here is local IPC that should resolve in
         // milliseconds when correct. Keeps a failing/not-yet-implemented
         // test's feedback fast instead of eating a long timeout every time.
-        rexpect::session::spawn_command(cmd, Some(2_000)).expect("spawn sandboxed shell under a pty")
+        rexpect::session::spawn_command(cmd, Some(2_000))
+            .expect("spawn sandboxed shell under a pty")
     }
 }
 
@@ -200,4 +201,22 @@ pub fn type_str(session: &mut rexpect::session::PtySession, s: &str) {
 pub fn press_tab(session: &mut rexpect::session::PtySession) {
     session.send("\t").unwrap();
     session.flush().unwrap();
+}
+
+/// Expect `names` to appear next, in that exact order, separated by one or
+/// more whitespace characters.
+///
+/// The spec only requires "at least one space" between listed matches (two
+/// recommended for readability) -- it does NOT guarantee an exact count.
+/// rustyline's real completion-list renderer column-pads entries to line up,
+/// so the actual gap between two names varies with their lengths. Asserting
+/// a literal `"a  b"` string is asserting an implementation detail that
+/// isn't part of the contract; assert order + "at least one space" instead.
+pub fn expect_match_list(session: &mut rexpect::session::PtySession, names: &[&str]) {
+    let pattern = names
+        .iter()
+        .map(|n| regex::escape(n))
+        .collect::<Vec<_>>()
+        .join(r"\s+");
+    session.exp_regex(&pattern).unwrap();
 }

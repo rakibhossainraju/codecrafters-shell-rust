@@ -12,7 +12,7 @@
 
 mod support;
 
-use support::{press_tab, type_str, wait_for_prompt, Sandbox, BELL};
+use support::{BELL, Sandbox, expect_match_list, press_tab, type_str, wait_for_prompt};
 
 #[test]
 fn spec_example_two_matches_bell_then_sorted_list_with_trailing_slash() {
@@ -32,9 +32,9 @@ fn spec_example_two_matches_bell_then_sorted_list_with_trailing_slash() {
         "matches must not be listed before the bell rings, got: {before_bell:?}"
     );
 
-    // Second <TAB>: sorted, two-space separated, dir gets a trailing slash.
+    // Second <TAB>: sorted, space separated, dir gets a trailing slash.
     press_tab(&mut session);
-    session.exp_string("bar.txt  foo/").unwrap();
+    expect_match_list(&mut session, &["bar.txt", "foo/"]);
 
     // Prompt reappears with the original input intact.
     session.exp_string("$ stat ").unwrap();
@@ -72,7 +72,7 @@ fn matches_are_sorted_alphabetically_regardless_of_filesystem_creation_order() {
     session.exp_char(BELL).unwrap();
     press_tab(&mut session);
 
-    session.exp_string("alpha.txt  mid/  zeta.txt").unwrap();
+    expect_match_list(&mut session, &["alpha.txt", "mid/", "zeta.txt"]);
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn file_only_matches_get_no_trailing_character() {
     session.exp_char(BELL).unwrap();
     press_tab(&mut session);
 
-    session.exp_string("receipt.txt  report.txt").unwrap();
+    expect_match_list(&mut session, &["receipt.txt", "report.txt"]);
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn directory_only_matches_all_get_a_trailing_slash() {
     session.exp_char(BELL).unwrap();
     press_tab(&mut session);
 
-    session.exp_string("data/  docs/").unwrap();
+    expect_match_list(&mut session, &["data/", "docs/"]);
 }
 
 #[test]
@@ -139,7 +139,7 @@ fn prompt_reappears_with_original_input_preserved_and_still_editable() {
     press_tab(&mut session);
     session.exp_char(BELL).unwrap();
     press_tab(&mut session);
-    session.exp_string("bar.txt  foo/").unwrap();
+    expect_match_list(&mut session, &["bar.txt", "foo/"]);
     session.exp_string("$ stat ").unwrap();
 
     // The user can keep typing to narrow the match down further.

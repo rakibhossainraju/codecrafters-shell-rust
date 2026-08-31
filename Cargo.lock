@@ -42,6 +42,7 @@ dependencies = [
 name = "codecrafters-shell"
 version = "0.1.0"
 dependencies = [
+ "regex",
  "rexpect",
  "rustyline",
  "tempfile",

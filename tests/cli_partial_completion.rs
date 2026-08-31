@@ -13,7 +13,7 @@
 
 mod support;
 
-use support::{press_tab, type_str, wait_for_prompt, Sandbox, BELL};
+use support::{BELL, Sandbox, expect_match_list, press_tab, type_str, wait_for_prompt};
 
 #[test]
 fn tester_example_partial_completes_then_bell_then_lists_all_three() {
@@ -43,45 +43,48 @@ fn tester_example_partial_completes_then_bell_then_lists_all_three() {
 
     // And the one after that lists everything, sorted, space-separated.
     press_tab(&mut session);
-    session
-        .exp_string("xyz_bee  xyz_bee_ant  xyz_bee_ant_dog")
-        .unwrap();
+    expect_match_list(&mut session, &["xyz_bee", "xyz_bee_ant", "xyz_bee_ant_dog"]);
     session.exp_string("$ xyz_bee").unwrap();
 }
 
 #[test]
 fn partial_completion_extends_by_a_single_character() {
     let sandbox = Sandbox::new();
-    sandbox.add_executable("cat");
-    sandbox.add_executable("cats");
+    // "e" avoids colliding with Sandbox's built-in fixture bins (argecho,
+    // catit, upper, stderrer, failer, clear).
+    sandbox.add_executable("elm");
+    sandbox.add_executable("elms");
 
     let mut session = sandbox.spawn_pty();
     wait_for_prompt(&mut session);
-    type_str(&mut session, "ca");
+    type_str(&mut session, "el");
 
     press_tab(&mut session);
-    let after_tab = session.exp_string("cat").unwrap();
+    let after_tab = session.exp_string("elm").unwrap();
     assert!(!after_tab.contains(BELL));
 }
 
 #[test]
 fn partial_completion_stops_exactly_where_matches_diverge() {
     let sandbox = Sandbox::new();
-    sandbox.add_executable("abcdef");
-    sandbox.add_executable("abcxyz");
+    // Note: must not start with any letter used by Sandbox's own built-in
+    // fixture bins (argecho, catit, upper, stderrer, failer, clear), or
+    // they'd sneak into the candidate set and change the real LCP.
+    sandbox.add_executable("kobdef");
+    sandbox.add_executable("kobxyz");
 
     let mut session = sandbox.spawn_pty();
     wait_for_prompt(&mut session);
-    type_str(&mut session, "a");
+    type_str(&mut session, "k");
 
-    // Common prefix of "abcdef" and "abcxyz" is "abc" -- completion must
+    // Common prefix of "kobdef" and "kobxyz" is "kob" -- completion must
     // stop there, not overshoot into either full name.
     press_tab(&mut session);
-    let after_tab = session.exp_string("abc").unwrap();
+    let after_tab = session.exp_string("kob").unwrap();
     assert!(!after_tab.contains(BELL));
 
-    // Confirm it really did stop at "abc" and not silently complete further:
-    // a second Tab (no further common prefix beyond "abc") should now ring
+    // Confirm it really did stop at "kob" and not silently complete further:
+    // a second Tab (no further common prefix beyond "kob") should now ring
     // the bell rather than continuing to extend.
     press_tab(&mut session);
     session.exp_char(BELL).unwrap();
