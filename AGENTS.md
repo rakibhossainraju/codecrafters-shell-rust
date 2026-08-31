@@ -115,6 +115,16 @@ or cwd outside its own throwaway directory:
   pseudo-terminal. Send raw bytes with `.send()`/`.send_control()` + `.flush()`, assert on output with
   `.exp_string()`/`.exp_char()`/`.exp_regex()`. `TERM` is set to `xterm-256color` for these (not `dumb`,
   which disables interactive editing) — don't reuse `sandbox.run()`'s `TERM=dumb` assumption here.
+- When asserting a completion **list** (multiple matches printed together), use
+  `support::expect_match_list(&mut session, &["a", "b"])`, not a literal string like `"a  b"`. The spec
+  only guarantees "at least one space" between entries; rustyline's real `CompletionType::List` renderer
+  column-pads based on entry width, so the actual gap varies. `expect_match_list` builds an
+  `exp_regex` requiring the names in order separated by `\s+`, which matches the real contract instead of
+  one incidental rendering of it.
+- Gotcha: `Sandbox::new()` always installs its own fixture bins (`argecho`, `catit`, `upper`, `stderrer`,
+  `failer`, `clear`) on the sandboxed `PATH`. A completion test that adds executables starting with the
+  same first letter (`add_executable("abc...")` collides with `argecho`'s `a`) silently pollutes the
+  candidate set and changes the real longest-common-prefix — pick a first letter none of those six use.
 
 **Coverage expectations per feature**: cover the happy path AND the error path (bad redirect target,
 unknown command, syntax error, missing file) and assert the shell reports the error *and keeps running*
