@@ -1,4 +1,4 @@
-use crate::commands::BUILTIN_COMMANDS;
+use crate::commands::BuiltinCommands;
 use crate::utils::get_executable_names;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
@@ -8,6 +8,8 @@ use rustyline::{Context, Helper};
 use std::cell::RefCell;
 use std::io::Write;
 use std::{fs, io};
+
+use strum::IntoEnumIterator;
 
 pub struct EditorHelper {
     pub last_tab_state: RefCell<Option<(String, usize)>>,
@@ -83,10 +85,9 @@ impl Completer for EditorHelper {
 
 impl EditorHelper {
     fn find_builtin_commands(&self, input: &str) -> Vec<Pair> {
-        BUILTIN_COMMANDS
-            .iter()
-            .filter(|(cmd, _)| cmd.starts_with(input))
-            .map(|(cmd, _)| Pair {
+        BuiltinCommands::iter()
+            .filter(|cmd| cmd.to_string().starts_with(input))
+            .map(|cmd| Pair {
                 display: cmd.to_string(),
                 replacement: cmd.to_string(),
             })
@@ -163,10 +164,7 @@ mod tests {
         let helper = EditorHelper::new();
         assert_eq!(names(&helper.find_builtin_commands("ec")), vec!["echo"]);
         assert_eq!(names(&helper.find_builtin_commands("")), {
-            let mut all: Vec<String> = crate::commands::BUILTIN_COMMANDS
-                .iter()
-                .map(|(n, _)| n.to_string())
-                .collect();
+            let mut all: Vec<String> = BuiltinCommands::iter().map(|cmd| cmd.to_string()).collect();
             all.sort();
             all
         });
