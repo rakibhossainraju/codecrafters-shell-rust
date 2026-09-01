@@ -2,6 +2,8 @@ use crate::commands::BuiltinCommands;
 use crate::error::Result;
 use std::io::{Read, Write};
 
+use strum::IntoEnumIterator;
+
 /// Get the help text for a builtin command
 fn get_command_help(cmd: BuiltinCommands) -> &'static str {
     match cmd {
@@ -13,6 +15,7 @@ fn get_command_help(cmd: BuiltinCommands) -> &'static str {
         BuiltinCommands::Cd => "cd       - Change directory",
         BuiltinCommands::Clear => "clear    - Clear the screen",
         BuiltinCommands::History => "history  - Show command history",
+        BuiltinCommands::Jobs => "jobs     - Show running jobs",
     }
 }
 
@@ -20,20 +23,8 @@ fn get_command_help(cmd: BuiltinCommands) -> &'static str {
 pub fn execute_help(_stdin: &mut dyn Read, stdout: &mut dyn Write) -> Result<()> {
     writeln!(stdout, "Available builtin commands:")?;
 
-    // This array ensures all builtin commands are listed
-    let commands = [
-        BuiltinCommands::Exit,
-        BuiltinCommands::Echo,
-        BuiltinCommands::Help,
-        BuiltinCommands::Type,
-        BuiltinCommands::Pwd,
-        BuiltinCommands::Cd,
-        BuiltinCommands::Clear,
-        BuiltinCommands::History,
-    ];
-
-    for cmd in commands.iter() {
-        writeln!(stdout, "  {}", get_command_help(*cmd))?;
+    for cmd in BuiltinCommands::iter() {
+        writeln!(stdout, "  {}", get_command_help(cmd))?;
     }
 
     Ok(())
