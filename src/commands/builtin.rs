@@ -1,82 +1,65 @@
 use std::cmp::PartialEq;
-use std::fmt::Display;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+use strum::{Display as StrumDisplay, EnumIter, EnumString};
+
+#[derive(Clone, Copy, PartialEq, Debug, EnumIter, StrumDisplay, EnumString)]
 pub enum BuiltinCommands {
+    #[strum(to_string = "clear")]
     Clear,
+    #[strum(to_string = "exit")]
     Exit,
+    #[strum(to_string = "echo")]
     Echo,
+    #[strum(to_string = "help")]
     Help,
+    #[strum(to_string = "type")]
     Type,
+    #[strum(to_string = "pwd")]
     Pwd,
+    #[strum(to_string = "cd")]
     Cd,
+    #[strum(to_string = "history")]
     History,
+    #[strum(to_string = "jobs")]
+    Jobs,
 }
-pub const BUILTIN_COMMANDS: &[(&str, BuiltinCommands)] = &[
-    ("clear", BuiltinCommands::Clear),
-    ("exit", BuiltinCommands::Exit),
-    ("echo", BuiltinCommands::Echo),
-    ("help", BuiltinCommands::Help),
-    ("type", BuiltinCommands::Type),
-    ("pwd", BuiltinCommands::Pwd),
-    ("cd", BuiltinCommands::Cd),
-    ("history", BuiltinCommands::History),
-];
-
 impl BuiltinCommands {
-    pub fn from_str(s: &str) -> Option<Self> {
-        for (name, cmd) in BUILTIN_COMMANDS {
-            if *name == s {
-                return Some(cmd.clone());
-            }
-        }
-        None
-    }
-
     pub fn is_builtin_command(s: &str) -> bool {
-        Self::from_str(s).is_some()
-    }
-}
-
-impl Display for BuiltinCommands {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (name, cmd) in BUILTIN_COMMANDS {
-            if *cmd == *self {
-                return write!(f, "{}", name);
-            }
-        }
-        Err(std::fmt::Error)
+        s.parse::<BuiltinCommands>().is_ok()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use strum::IntoEnumIterator;
 
     #[test]
     fn recognizes_every_registered_builtin_name() {
-        for (name, cmd) in BUILTIN_COMMANDS {
-            assert_eq!(BuiltinCommands::from_str(name), Some(*cmd));
-            assert!(BuiltinCommands::is_builtin_command(name));
+        for cmd in BuiltinCommands::iter() {
+            let name = cmd.to_string();
+            assert_eq!(name.parse::<BuiltinCommands>().unwrap(), cmd);
+            assert!(BuiltinCommands::is_builtin_command(&name));
         }
     }
 
     #[test]
     fn unknown_command_is_not_a_builtin() {
-        assert_eq!(BuiltinCommands::from_str("not-a-real-command"), None);
+        assert!("not-a-real-command".parse::<BuiltinCommands>().is_err());
         assert!(!BuiltinCommands::is_builtin_command("ls"));
     }
 
     #[test]
     fn display_round_trips_through_the_lookup_table() {
-        for (name, cmd) in BUILTIN_COMMANDS {
-            assert_eq!(cmd.to_string(), *name);
+        for cmd in BuiltinCommands::iter() {
+            let name = cmd.to_string();
+            assert_eq!(name.parse::<BuiltinCommands>().unwrap(), cmd);
         }
     }
 
     #[test]
     fn lookup_is_case_sensitive() {
-        assert_eq!(BuiltinCommands::from_str("ECHO"), None);
-        assert_eq!(BuiltinCommands::from_str("Echo"), None);
+        assert!("ECHO".parse::<BuiltinCommands>().is_err());
+        assert!("Echo".parse::<BuiltinCommands>().is_err());
     }
 }
