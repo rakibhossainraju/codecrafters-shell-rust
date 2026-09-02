@@ -1,7 +1,7 @@
 use crate::commands::executors::history;
 use crate::commands::{
     BuiltinCommands, ExternalCommand,
-    executors::{cd, clear, command_type, echo, external, help, pwd},
+    executors::{cd, clear, command_type, echo, external, help, jobs, pwd},
 };
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
@@ -21,7 +21,7 @@ impl Command {
         }
 
         // Try builtin commands first
-        if let Some(builtin) = BuiltinCommands::from_str(&parsed_cmd.cmd) {
+        if let Ok(builtin) = parsed_cmd.cmd.parse::<BuiltinCommands>() {
             return Ok(Command::Builtin(builtin, parsed_cmd));
         }
         // Try external commands (searches PATH)
@@ -64,6 +64,7 @@ impl Command {
                     BuiltinCommands::Type => {
                         command_type::execute_type(parsed_cmd, &mut stdin, &mut stdout)
                     }
+                    BuiltinCommands::Jobs => jobs::execute_jobs(&mut stdin, &mut stdout),
                     BuiltinCommands::Exit => Ok(()),
                 }
             }

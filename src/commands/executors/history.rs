@@ -59,23 +59,23 @@ pub fn execute_history(
     stdout: &mut dyn Write,
     state: &mut ShellState,
 ) -> Result<()> {
-    let action = HistoryAction::from_args(&parsed_cmd.args, state.history.len())?;
+    let action = HistoryAction::from_args(&parsed_cmd.args, state.history.entries.len())?;
 
     match action {
         HistoryAction::Display(size) => {
-            let start = state.history.len().saturating_sub(size);
-            for (i, cmd) in state.history.iter().enumerate().skip(start) {
+            let start = state.history.entries.len().saturating_sub(size);
+            for (i, cmd) in state.history.entries.iter().enumerate().skip(start) {
                 writeln!(stdout, "{:>5}  {}", i + 1, cmd).map_err(ShellError::IoError)?;
             }
         }
         HistoryAction::Read(filename) => {
-            state.load_history(&filename)?;
+            state.history.load_history(&filename)?;
         }
         HistoryAction::Write(filename) => {
-            state.write_history(&filename)?;
+            state.history.write_history(&filename)?;
         }
         HistoryAction::Append(filename) => {
-            state.append_history(&filename)?;
+            state.history.append_history(&filename)?;
         }
     }
     Ok(())

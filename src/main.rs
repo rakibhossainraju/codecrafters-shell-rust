@@ -13,10 +13,13 @@ fn main() {
     let history_file = env::var("HISTFILE").ok();
 
     if let Some(ref path) = history_file {
-        if let Ok(_) = state.load_history(path) {
-            for entry in &state.history {
-                editor.add_history_entry(entry);
+        match state.history.load_history(path) {
+            Ok(_) => {
+                for entry in &state.history.entries {
+                    editor.add_history_entry(entry);
+                }
             }
+            Err(e) => eprintln!("{}", e),
         }
     }
 
@@ -26,7 +29,7 @@ fn main() {
                 if input.is_empty() {
                     continue;
                 }
-                state.history.push(input.clone());
+                state.history.add_history(input.clone());
                 editor.add_history_entry(&input);
                 input
             }
@@ -60,6 +63,8 @@ fn main() {
     }
 
     if let Some(ref path) = history_file {
-        let _ = state.write_history(path);
+        if let Err(e) = state.history.write_history(path) {
+            eprintln!("{}", e);
+        }
     }
 }

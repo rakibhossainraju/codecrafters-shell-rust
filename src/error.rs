@@ -43,6 +43,9 @@ pub enum ShellError {
 
     #[error("fc: invalid argument: {0}")]
     InvalidArgument(String),
+
+    #[error("could not write to history file: {0}")]
+    HistoryWriteError(io::Error),
 }
 
 pub type Result<T> = std::result::Result<T, ShellError>;

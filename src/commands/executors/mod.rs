@@ -5,5 +5,6 @@ pub mod echo;
 pub mod external;
 pub mod help;
 pub mod history;
+pub mod jobs;
 pub mod pipeline;
 pub mod pwd;

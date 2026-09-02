@@ -15,7 +15,7 @@ pub struct ParsedCommand {
 pub enum ASTNode {
     Simple(ParsedCommand),
     Pipeline(Vec<ParsedCommand>),
-    // Background(Box<ASTNode>, Box<ASTNode>),
+    // Background(Box<ASTNode>),
     // And(Box<ASTNode>, Box<ASTNode>),
     // Or(Box<ASTNode>, Box<ASTNode>),
 }
