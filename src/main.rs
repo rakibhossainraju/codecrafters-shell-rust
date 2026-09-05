@@ -48,6 +48,7 @@ fn main() {
                 continue;
             }
         };
+        println!("Tokens: {:#?}", tokens);
         let ast = match Parser::parser(tokens) {
             Ok(ast_note) => ast_note,
             Err(e) => {
@@ -55,11 +56,13 @@ fn main() {
                 continue;
             }
         };
-        match commands::execute_ast(ast, &mut state) {
-            Ok(_) => (),
-            Err(ShellError::ExitOut) => break,
-            Err(e) => eprintln!("{}", e),
-        }
+        println!("AST: {:#?}", ast);
+        // match commands::execute_ast(ast, &mut state) {
+        //     Ok(_) => (),
+        //     Err(ShellError::ExitOut) => break,
+        //     Err(e) => eprintln!("{}", e),
+        //     _ => {}
+        // }
     }
 
     if let Some(ref path) = history_file {
