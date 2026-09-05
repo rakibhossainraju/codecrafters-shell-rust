@@ -29,9 +29,10 @@ pub fn execute_ast(ast: ASTNode, state: &mut ShellState) -> Result<()> {
         ASTNode::Pipeline(cmds) => {
             execute_pipeline(cmds, state)?;
             Ok(())
-        } // ASTNode::Background(cmd) => {
-          //     execute_ast(*cmd, state)?;
-          //     Ok(())
-          // }
+        }
+        ASTNode::Background(cmd) => {
+            execute_ast(*cmd, state)?;
+            Ok(())
+        }
     }
 }
