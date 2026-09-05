@@ -81,13 +81,20 @@ impl Parser {
 
     fn parse_simple_command(&mut self) -> Result<ParsedCommand> {
         let mut cmd = ParsedCommand::default();
+        // Remembers the operator token that ended this command, if any, so
+        // that an empty command can report *which* unexpected token caused
+        // it (e.g. a leading `|` or `&`) rather than a generic message.
+        let mut terminating_token = None;
 
         // Keep peeking at tokens until we hit an operator or run out of tokens
         while let Some(token) = self.tokens.peek() {
             match token {
                 // If we see an operator, we STOP parsing this simple.
                 // We leave the token in the iterator for `parse_pipeline` to find.
-                Token::Pipe | Token::And | Token::Or | Token::Background => break,
+                Token::Pipe | Token::And | Token::Or | Token::Background => {
+                    terminating_token = Some(token.clone());
+                    break;
+                }
                 _ => {
                     let token = self.tokens.next().expect("guaranteed by peek");
                     match token {
@@ -107,20 +114,16 @@ impl Parser {
                         Token::RedirectIn(desc) => {
                             self.parse_redirect(&mut cmd, desc, RedirectionType::Input)?
                         }
-                        unknown_token => {
-                            return Err(ShellError::SyntaxError(format!(
-                                "unexpected token in simple command: {:?}",
-                                unknown_token
-                            )));
-                        }
+                        unexpected => return Err(ShellError::ParserSyntaxError(unexpected)),
                     }
                 }
             }
         }
         if cmd.cmd.is_empty() {
-            return Err(ShellError::SyntaxError(
-                "unexpected empty command".to_string(),
-            ));
+            return Err(match terminating_token {
+                Some(token) => ShellError::ParserSyntaxError(token),
+                None => ShellError::SyntaxError("unexpected empty command".to_string()),
+            });
         }
         Ok(cmd)
     }
