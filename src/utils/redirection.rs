@@ -1,12 +1,17 @@
+use strum::{Display, EnumString};
+
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Display)]
 pub enum Descriptor {
+    #[strum(to_string = "")]
     Stdin,
+    #[strum(to_string = "")]
     Stdout,
+    #[strum(to_string = "2")]
     Stderr,
 }
 

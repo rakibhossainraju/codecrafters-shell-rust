@@ -1,19 +1,30 @@
 use crate::error::{Result, ShellError};
 use crate::utils::Descriptor;
+use std::cmp::PartialEq;
 use std::iter::Peekable;
 use std::mem;
 use std::str::Chars;
 
-#[derive(Debug, PartialEq)]
+use strum::{Display as StrumDisplay, EnumString};
+
+#[derive(Clone, PartialEq, Debug, StrumDisplay)]
 pub enum Token {
+    #[strum(to_string = "{0}")]
     Word(String),
-    Pipe,                       // |
-    Or,                         // ||
-    Background,                 // &
-    And,                        // &&
-    RedirectOut(Descriptor),    // >
-    RedirectAppend(Descriptor), // >>
-    RedirectIn(Descriptor),     // <
+    #[strum(to_string = "|")]
+    Pipe,
+    #[strum(to_string = "||")]
+    Or,
+    #[strum(to_string = "&")]
+    Background,
+    #[strum(to_string = "&&")]
+    And,
+    #[strum(to_string = "{0}>")]
+    RedirectOut(Descriptor),
+    #[strum(to_string = "{0}>>")]
+    RedirectAppend(Descriptor),
+    #[strum(to_string = "{0}<")]
+    RedirectIn(Descriptor),
 }
 
 #[derive(Debug, PartialEq)]
