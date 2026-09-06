@@ -57,12 +57,11 @@ fn main() {
             }
         };
         println!("AST: {:#?}", ast);
-        // match commands::execute_ast(ast, &mut state) {
-        //     Ok(_) => (),
-        //     Err(ShellError::ExitOut) => break,
-        //     Err(e) => eprintln!("{}", e),
-        //     _ => {}
-        // }
+        match commands::execute_ast(ast, &mut state) {
+            Ok(_) => (),
+            Err(ShellError::ExitOut) => break,
+            Err(e) => eprintln!("{}", e),
+        }
     }
 
     if let Some(ref path) = history_file {
