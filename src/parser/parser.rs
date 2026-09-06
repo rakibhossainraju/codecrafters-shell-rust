@@ -55,6 +55,12 @@ impl Parser {
             }
         }
 
+        if commands.is_empty() {
+            return Err(ShellError::SyntaxError(
+                "unexpected empty command".to_string(),
+            ));
+        }
+
         Ok(commands)
     }
 

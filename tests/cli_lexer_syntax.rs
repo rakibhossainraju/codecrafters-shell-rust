@@ -74,10 +74,15 @@ fn or_operator_is_not_implemented_and_silently_drops_the_second_command() {
     assert_eq!(stdout(&out), "first\n");
 }
 
-/// Same gap for background `&` -- no actual backgrounding happens.
+/// Unlike `&&`/`||` above, `&` is implemented: it runs the command before it
+/// (backgrounded) and then continues on to execute the rest of the line.
+/// `echo` is a builtin, which still runs synchronously even when
+/// `Background`-wrapped (see `execute_background`), so this is deterministic:
+/// both commands' output shows up, in order.
 #[test]
-fn background_operator_is_not_implemented_and_silently_drops_the_second_command() {
+fn background_operator_runs_the_preceding_command_then_continues() {
     let sandbox = Sandbox::new();
     let out = sandbox.run("echo first & echo second\n");
-    assert_eq!(stdout(&out), "first\n");
+    assert_eq!(stdout(&out), "first\nsecond\n");
+    assert_eq!(stderr(&out), "");
 }
