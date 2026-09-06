@@ -48,7 +48,7 @@ fn main() {
                 continue;
             }
         };
-        println!("Tokens: {:#?}", tokens);
+        // println!("Tokens: {:#?}", tokens);
         let ast = match Parser::parser(tokens) {
             Ok(ast_note) => ast_note,
             Err(e) => {
@@ -56,7 +56,7 @@ fn main() {
                 continue;
             }
         };
-        println!("AST: {:#?}", ast);
+        // println!("AST: {:#?}", ast);
         match commands::execute_ast(ast, &mut state) {
             Ok(_) => (),
             Err(ShellError::ExitOut) => break,
