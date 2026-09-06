@@ -3,6 +3,7 @@ mod command;
 mod executors;
 mod external;
 
+use crate::commands::executors::background::execute_background;
 use crate::commands::executors::pipeline::execute_pipeline;
 use crate::error::{Result, ShellError};
 use crate::parser::{ASTNode, ASTNodes};
@@ -37,8 +38,9 @@ fn ast_executor(ast_node: ASTNode, state: &mut ShellState) -> Result<()> {
             execute_pipeline(cmds, state)?;
             Ok(())
         }
-        ASTNode::Background(cmd) => {
-            todo!("BACKGROUND NOT YET IMPLEMENTED")
+        ASTNode::Background(ast) => {
+            execute_background(ast, state)?;
+            Ok(())
         }
     }
 }
