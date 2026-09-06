@@ -6,7 +6,7 @@ use crate::commands::{
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
 use crate::state::ShellState;
-use crate::utils::redirection::{IoStreams, ResolvedRedirections};
+use crate::utils::redirection::{IoStreams, ResolvedReDirections};
 use std::io::{Read, Write};
 
 pub enum Command {
@@ -39,7 +39,7 @@ impl Command {
     ) -> Result<()> {
         match self {
             Command::Builtin(builtin, parsed_cmd) => {
-                let resolved = ResolvedRedirections::resolve(parsed_cmd)?;
+                let resolved = ResolvedReDirections::resolve(parsed_cmd)?;
 
                 let mut stdin: Box<dyn Read> = match resolved.stdin {
                     Some(file) => Box::new(file),
