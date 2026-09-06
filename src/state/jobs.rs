@@ -17,9 +17,7 @@ pub struct JobState {
 
 impl JobState {
     pub fn new() -> Self {
-        Self {
-            jobs: Vec::new(),
-        }
+        Self { jobs: Vec::new() }
     }
 
     fn get_next_job_id(&self) -> i32 {

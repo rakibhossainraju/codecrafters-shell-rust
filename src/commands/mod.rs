@@ -5,14 +5,21 @@ mod external;
 
 use crate::commands::executors::pipeline::execute_pipeline;
 use crate::error::{Result, ShellError};
-use crate::parser::ASTNode;
+use crate::parser::{ASTNode, ASTNodes};
 use crate::state::ShellState;
 pub use builtin::*;
 pub use command::*;
 pub use external::*;
 
-pub fn execute_ast(ast: ASTNode, state: &mut ShellState) -> Result<()> {
-    match ast {
+pub fn execute_ast(ast: ASTNodes, state: &mut ShellState) -> Result<()> {
+    for ast_node in ast {
+        ast_executor(ast_node, state)?;
+    }
+    Ok(())
+}
+
+fn ast_executor(ast_node: ASTNode, state: &mut ShellState) -> Result<()> {
+    match ast_node {
         ASTNode::Simple(parsed_cmd) => {
             let cmd = Command::resolve(parsed_cmd)?;
 
@@ -29,9 +36,9 @@ pub fn execute_ast(ast: ASTNode, state: &mut ShellState) -> Result<()> {
         ASTNode::Pipeline(cmds) => {
             execute_pipeline(cmds, state)?;
             Ok(())
-        } // ASTNode::Background(cmd) => {
-          //     execute_ast(*cmd, state)?;
-          //     Ok(())
-          // }
+        }
+        ASTNode::Background(cmd) => {
+            todo!("BACKGROUND NOT YET IMPLEMENTED")
+        }
     }
 }

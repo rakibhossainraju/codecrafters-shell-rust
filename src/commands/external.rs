@@ -1,7 +1,7 @@
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
 use crate::utils::path::get_executable_path;
-use crate::utils::redirection::ResolvedRedirections;
+use crate::utils::redirection::ResolvedReDirections;
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::{Child, Command as OsCommand, Stdio};
@@ -43,9 +43,9 @@ impl ExternalCommand {
         cmd.arg0(&self.parsed_cmd.cmd);
         cmd.args(&self.parsed_cmd.args);
 
-        let resolved = ResolvedRedirections::resolve(&self.parsed_cmd)?;
+        let resolved = ResolvedReDirections::resolve(&self.parsed_cmd)?;
 
-        // Redirections take precedence over default pipeline streams
+        // Re-directions take precedence over default pipeline streams
         if let Some(stdin) = resolved.stdin {
             cmd.stdin(Stdio::from(stdin));
         } else if let Some(stdin) = default_stdin {

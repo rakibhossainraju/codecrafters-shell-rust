@@ -1,6 +1,6 @@
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
-use crate::utils::redirection::ResolvedRedirections;
+use crate::utils::redirection::ResolvedReDirections;
 use std::process::{Command, Stdio};
 
 pub fn execute_clear(parsed_cmd: &ParsedCommand) -> Result<()> {
@@ -14,7 +14,7 @@ pub fn execute_clear(parsed_cmd: &ParsedCommand) -> Result<()> {
         Command::new("clear")
     };
 
-    let resolved = ResolvedRedirections::resolve(parsed_cmd)?;
+    let resolved = ResolvedReDirections::resolve(parsed_cmd)?;
     if let Some(stdout) = resolved.stdout {
         cmd.stdout(Stdio::from(stdout));
     }
