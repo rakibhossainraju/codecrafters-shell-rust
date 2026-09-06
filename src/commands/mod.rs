@@ -12,28 +12,33 @@ pub use command::*;
 pub use external::*;
 
 pub fn execute_ast(ast: ASTNodes, state: &mut ShellState) -> Result<()> {
-    // match ast {
-    //     ASTNode::Simple(parsed_cmd) => {
-    //         let cmd = Command::resolve(parsed_cmd)?;
+    for ast_node in ast {
+        ast_executor(ast_node, state)?;
+    }
+    Ok(())
+}
 
-    //         // Check for exit before executing (to break the loop)
-    //         if matches!(cmd, Command::Builtin(BuiltinCommands::Exit, _)) {
-    //             return Err(ShellError::ExitOut);
-    //         }
+fn ast_executor(ast_node: ASTNode, state: &mut ShellState) -> Result<()> {
+    match ast_node {
+        ASTNode::Simple(parsed_cmd) => {
+            let cmd = Command::resolve(parsed_cmd)?;
 
-    //         // Execute the command with remaining arguments
-    //         cmd.execute(None, None, state)?;
-    //         // If we get here, the command executed successfully
-    //         Ok(())
-    //     }
-    //     ASTNode::Pipeline(cmds) => {
-    //         execute_pipeline(cmds, state)?;
-    //         Ok(())
-    //     }
-    //     ASTNode::Background(cmd) => {
-    //         execute_ast(*cmd, state)?;
-    //         Ok(())
-    //     }
-    // }
-    todo!("RE-IMPLEMENT THE AST EXECUTION")
+            // Check for exit before executing (to break the loop)
+            if matches!(cmd, Command::Builtin(BuiltinCommands::Exit, _)) {
+                return Err(ShellError::ExitOut);
+            }
+
+            // Execute the command with remaining arguments
+            cmd.execute(None, None, state)?;
+            // If we get here, the command executed successfully
+            Ok(())
+        }
+        ASTNode::Pipeline(cmds) => {
+            execute_pipeline(cmds, state)?;
+            Ok(())
+        }
+        ASTNode::Background(cmd) => {
+            todo!("BACKGROUND NOT YET IMPLEMENTED")
+        }
+    }
 }
