@@ -3,7 +3,7 @@ use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
 use crate::state::ShellState;
 use std::io::{self, Cursor, Read, Write};
-use std::{mem};
+use std::mem;
 use std::process::{Child, ChildStdout, Stdio};
 
 /// Represents the output of a command that will be used as the input for the next command in the pipeline
