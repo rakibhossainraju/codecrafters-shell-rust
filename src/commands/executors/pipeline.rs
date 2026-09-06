@@ -3,20 +3,16 @@ use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
 use crate::state::ShellState;
 use std::io::{self, Cursor, Read, Write};
-use std::mem;
+use std::{mem};
 use std::process::{Child, ChildStdout, Stdio};
 
 /// Represents the output of a command that will be used as the input for the next command in the pipeline
+#[derive(Default)]
 pub enum PipelineLink {
+    #[default]
     None,
     ChildStdout(ChildStdout),
     Buffer(Vec<u8>),
-}
-
-impl Default for PipelineLink {
-    fn default() -> Self {
-        PipelineLink::None
-    }
 }
 
 impl PipelineLink {
