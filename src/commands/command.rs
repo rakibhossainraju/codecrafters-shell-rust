@@ -64,7 +64,7 @@ impl Command {
                     BuiltinCommands::Type => {
                         command_type::execute_type(parsed_cmd, &mut stdin, &mut stdout)
                     }
-                    BuiltinCommands::Jobs => jobs::execute_jobs(&mut stdin, &mut stdout),
+                    BuiltinCommands::Jobs => jobs::execute_jobs(&mut stdin, &mut stdout, state),
                     BuiltinCommands::Exit => Ok(()),
                 }
             }

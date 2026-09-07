@@ -1,10 +1,14 @@
 use std::process::{Child, ExitStatus};
+use strum::{Display, EnumString};
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Display)]
 pub enum JobStatus {
     #[default]
+     #[strum(to_string = "running")]
     Running,
+     #[strum(to_string = "done")]
     Done,
+     #[strum(to_string = "failed")]
     Failed(i32),
 }
 
@@ -81,9 +85,16 @@ impl JobState {
         self.jobs.retain(|job| job.status == JobStatus::Done);
     }
     pub fn print_jobs(&mut self) {
-        todo!("PRINT JOBS");
+        let mut parts = Vec::new();
+        for job in self.jobs.iter() {
+            let part = format!("[{}]  +/- {}    {}", job.id, job.status, job.cmd);
+            parts.push(part);
+        }
+        let formatted_str = format!("{}", parts.join("\n").as_str());
+        println!("{}", formatted_str);
         self.clear_done_jobs();
     }
+
     pub fn print_done_job(&mut self) {
         todo!("PRINT JOB");
         self.clear_done_jobs();
