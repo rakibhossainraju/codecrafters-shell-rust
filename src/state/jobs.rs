@@ -1,11 +1,11 @@
-use std::process::Child;
+use std::process::{Child, ExitStatus};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub enum JobStatus {
     #[default]
     Running,
-    Completed,
-    Failed,
+    Done,
+    Failed(i32),
 }
 
 #[derive(Debug)]
@@ -14,6 +14,7 @@ pub struct Job {
     pid: u32,
     id: u32,
     child: Child,
+    cmd: String
 }
 
 #[derive(Debug)]
@@ -35,7 +36,7 @@ impl JobState {
         next_id
     }
 
-    pub fn push_job(&mut self, child: Child) -> u32 {
+    pub fn push_job(&mut self, child: Child, cmd: String) -> u32 {
         let job_id = self.get_next_job_id();
         let pid = child.id();
 
@@ -44,8 +45,10 @@ impl JobState {
             status: JobStatus::default(),
             pid,
             id: job_id,
+            cmd
         };
         self.jobs.push(new_job);
+        self.reap_finished_jobs();
         job_id
     }
 
@@ -61,6 +64,29 @@ impl JobState {
         if let Some(job) = self.jobs.iter_mut().find(|job| job.id == job_id) {
             job.status = status;
         }
+    }
+
+    pub fn reap_finished_jobs(&mut self) {
+        for job in self.jobs.iter_mut() {
+            if let Ok(Some(exit_status)) = job.child.try_wait() {
+                if exit_status.success() {
+                    job.status  = JobStatus::Done;
+                } else {
+                    job.status  = JobStatus::Failed(exit_status.code().unwrap_or(1));
+                }
+            }
+        }
+    }
+    pub fn clear_done_jobs(&mut self) {
+        self.jobs.retain(|job| job.status == JobStatus::Done);
+    }
+    pub fn print_jobs(&mut self) {
+        todo!("PRINT JOBS");
+        self.clear_done_jobs();
+    }
+    pub fn print_done_job(&mut self) {
+        todo!("PRINT JOB");
+        self.clear_done_jobs();
     }
 }
 
@@ -79,11 +105,17 @@ mod tests {
             .expect("spawn dummy child for test")
     }
 
+    /// Convenience wrapper: pushes a dummy child with a placeholder command
+    /// string, since these tests don't care about the display text.
+    fn push_dummy_job(state: &mut JobState) -> u32 {
+        state.push_job(spawn_dummy_child(), "dummy".to_string())
+    }
+
     #[test]
     fn sequential_jobs_receive_increasing_ids() {
         let mut state = JobState::new();
-        let id1 = state.push_job(spawn_dummy_child());
-        let id2 = state.push_job(spawn_dummy_child());
+        let id1 = push_dummy_job(&mut state);
+        let id2 = push_dummy_job(&mut state);
         assert_eq!(id1, 1);
         assert_eq!(id2, 2);
     }
@@ -91,8 +123,8 @@ mod tests {
     #[test]
     fn removing_earlier_job_does_not_cause_id_collision_on_subsequent_adds() {
         let mut state = JobState::new();
-        let id1 = state.push_job(spawn_dummy_child());
-        let id2 = state.push_job(spawn_dummy_child());
+        let id1 = push_dummy_job(&mut state);
+        let id2 = push_dummy_job(&mut state);
 
         // Job 1 finishes and is removed while Job 2 is still running
         state.remove_job(id1);
@@ -100,7 +132,7 @@ mod tests {
         assert!(state.get_job(id2).is_some());
 
         // Adding a new job while Job 2 is still active
-        let id3 = state.push_job(spawn_dummy_child());
+        let id3 = push_dummy_job(&mut state);
         assert_ne!(
             id3, id2,
             "Newly added job ID must not collide with currently active job ID"
@@ -113,23 +145,23 @@ mod tests {
     fn lowest_unused_id_reused_when_available() {
         let mut state = JobState::new();
         // Start 3 jobs: IDs 1, 2, 3
-        let id1 = state.push_job(spawn_dummy_child());
-        let id2 = state.push_job(spawn_dummy_child());
-        let id3 = state.push_job(spawn_dummy_child());
+        let id1 = push_dummy_job(&mut state);
+        let id2 = push_dummy_job(&mut state);
+        let id3 = push_dummy_job(&mut state);
         assert_eq!((id1, id2, id3), (1, 2, 3));
 
         // Remove job 1 -> lowest unused is now 1
         state.remove_job(id1);
-        let new_id1 = state.push_job(spawn_dummy_child());
+        let new_id1 = push_dummy_job(&mut state);
         assert_eq!(new_id1, 1);
 
         // Remove job 2 -> lowest unused is now 2
         state.remove_job(id2);
-        let new_id2 = state.push_job(spawn_dummy_child());
+        let new_id2 = push_dummy_job(&mut state);
         assert_eq!(new_id2, 2);
 
         // Next job should get 4
-        let id4 = state.push_job(spawn_dummy_child());
+        let id4 = push_dummy_job(&mut state);
         assert_eq!(id4, 4);
     }
 
@@ -138,20 +170,20 @@ mod tests {
         let mut state = JobState::new();
         let mut ids = Vec::new();
         for _ in 0..10 {
-            ids.push(state.push_job(spawn_dummy_child()));
+            ids.push(push_dummy_job(&mut state));
         }
         // Free slots 3 and 7 (IDs 4 and 8, since 1-indexed)
         state.remove_job(ids[3]);
         state.remove_job(ids[7]);
 
         // Next two additions should take ID 4 and then ID 8
-        let reused_first = state.push_job(spawn_dummy_child());
-        let reused_second = state.push_job(spawn_dummy_child());
+        let reused_first = push_dummy_job(&mut state);
+        let reused_second = push_dummy_job(&mut state);
         assert_eq!(reused_first, ids[3]);
         assert_eq!(reused_second, ids[7]);
 
         // Next addition should take ID 11
-        let next_id = state.push_job(spawn_dummy_child());
+        let next_id = push_dummy_job(&mut state);
         assert_eq!(next_id, 11);
     }
 }
