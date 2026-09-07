@@ -17,7 +17,8 @@ pub fn execute_background(ast: Box<ASTNode>, state: &mut ShellState) -> Result<(
                 }
                 Command::External(external_cmd) => {
                     let child = external_cmd.spawn(None, None)?;
-                    state.jobs.push_job(child);
+                    let cmd_str = external_cmd.parsed_cmd.to_string();
+                    state.jobs.push_job(child, cmd_str);
                 }
                 builtin_cmd => {
                     builtin_cmd.execute(None, None, state)?;

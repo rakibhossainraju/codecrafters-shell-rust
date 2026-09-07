@@ -4,6 +4,7 @@ use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Display)]
 pub enum Descriptor {
@@ -26,10 +27,13 @@ impl From<char> for Descriptor {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Display)]
 pub enum RedirectionType {
+    #[strum(to_string = "<")]
     Input,
+    #[strum(to_string = ">")]
     Output,
+    #[strum(to_string = ">>")]
     Append,
 }
 
@@ -39,6 +43,17 @@ pub struct Redirection {
     pub file: String,
     pub redirection_type: RedirectionType,
 }
+
+impl fmt::Display for Redirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Map the enum variants to their shell symbols
+        let symbol = self.redirection_type.to_string();
+
+        // Prints "2>", ">", or "<" based on the descriptor and type
+        write!(f, "{}{}{}", self.descriptor, symbol, self.file)
+    }
+}
+
 
 pub struct ResolvedReDirections {
     pub stdout: Option<File>,

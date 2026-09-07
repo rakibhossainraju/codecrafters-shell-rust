@@ -1,14 +1,38 @@
 use crate::error::{Result, ShellError};
 use crate::parser::lexer::Token;
 use crate::utils::{Descriptor, Redirection, RedirectionType};
-use std::iter::Peekable;
-use std::vec::IntoIter;
+use std::{
+    iter::Peekable,
+    vec::IntoIter,
+    fmt,
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct ParsedCommand {
     pub cmd: String,
     pub args: Vec<String>,
     pub redirects: Vec<Redirection>,
+}
+
+impl fmt::Display for ParsedCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut parts = vec![self.cmd.as_str()];
+
+        // Add arguments
+        for arg in &self.args {
+            parts.push(arg.as_str());
+        }
+
+        // Join command and args with spaces
+        write!(f, "{}", parts.join(" "))?;
+
+        // Append redirections with a leading space if any exist
+        for redirect in &self.redirects {
+            write!(f, " {}", redirect)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
