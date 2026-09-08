@@ -62,6 +62,7 @@ fn main() {
             Err(ShellError::ExitOut) => break,
             Err(e) => eprintln!("{}", e),
         }
+        state.jobs.print_done_job();
     }
 
     if let Some(ref path) = history_file {

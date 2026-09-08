@@ -1,14 +1,14 @@
-use std::process::{Child, ExitStatus};
-use strum::{Display, EnumString};
+use std::process::Child;
+use strum::Display;
 
 #[derive(Debug, Default, PartialEq, Eq, Display)]
 pub enum JobStatus {
     #[default]
-     #[strum(to_string = "running")]
+    #[strum(to_string = "running")]
     Running,
-     #[strum(to_string = "done")]
+    #[strum(to_string = "done")]
     Done,
-     #[strum(to_string = "failed")]
+    #[strum(to_string = "failed")]
     Failed(i32),
 }
 
@@ -18,12 +18,18 @@ pub struct Job {
     pid: u32,
     id: u32,
     child: Child,
-    cmd: String
+    cmd: String,
 }
 
 #[derive(Debug)]
 pub struct JobState {
     jobs: Vec<Job>,
+}
+
+impl Default for JobState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl JobState {
@@ -36,8 +42,7 @@ impl JobState {
         for job in self.jobs.iter() {
             mask |= 1u64 << (job.id - 1);
         }
-        let next_id = (!mask).trailing_zeros() as u32 + 1;
-        next_id
+        (!mask).trailing_zeros() + 1
     }
 
     pub fn push_job(&mut self, child: Child, cmd: String) -> u32 {
@@ -49,7 +54,7 @@ impl JobState {
             status: JobStatus::default(),
             pid,
             id: job_id,
-            cmd
+            cmd,
         };
         self.jobs.push(new_job);
         self.reap_finished_jobs();
@@ -70,43 +75,56 @@ impl JobState {
         }
     }
 
-    pub fn format_jobs(&mut self) -> String{
-        let mut parts = Vec::new();
-        for job in self.jobs.iter() {
-            let part = format!("[{}]  +/- {}    {}\n", job.id, job.status, job.cmd);
-            parts.push(part);
-        }
-        parts.push("\n".to_string());
-        // Call the cleanup;
+    pub fn format_jobs(&mut self) -> String {
+        self.reap_finished_jobs();
+        let formatted_jobs = Self::job_formatter(self.jobs.iter());
         self.clear_done_jobs();
-
-        format!("{}", parts.join(""))
+        formatted_jobs
     }
 
     pub fn print_done_job(&mut self) {
-        #![allow(unreachable_code)]
-        todo!("PRINT JOB");
+        self.reap_finished_jobs();
+
+        let executed_jobs = self
+            .jobs
+            .iter()
+            .filter(|job| job.status != JobStatus::Running);
+        let formatted_jobs = Self::job_formatter(executed_jobs);
+
+        print!("{}", formatted_jobs);
+
         self.clear_done_jobs();
     }
 
-
     pub fn clear_done_jobs(&mut self) {
-        self.reap_finished_jobs();
-        self.jobs.retain(|job| job.status == JobStatus::Done);
+        self.jobs.retain(|job| job.status == JobStatus::Running);
     }
 
     fn reap_finished_jobs(&mut self) {
         for job in self.jobs.iter_mut() {
             if let Ok(Some(exit_status)) = job.child.try_wait() {
                 if exit_status.success() {
-                    job.status  = JobStatus::Done;
+                    job.status = JobStatus::Done;
                 } else {
-                    job.status  = JobStatus::Failed(exit_status.code().unwrap_or(1));
+                    job.status = JobStatus::Failed(exit_status.code().unwrap_or(1));
                 }
             }
         }
     }
+    fn job_formatter<'a>(jobs: impl Iterator<Item = &'a Job>) -> String {
+        let mut parts = Vec::new();
+        for job in jobs {
+            let part = format!("[{}]  +/- {}    {}\n", job.id, job.status, job.cmd);
+            parts.push(part);
+        }
 
+        if !parts.is_empty() {
+            parts.push("\n".to_string());
+            parts.join("")
+        } else {
+            String::new()
+        }
+    }
 }
 
 #[cfg(test)]
