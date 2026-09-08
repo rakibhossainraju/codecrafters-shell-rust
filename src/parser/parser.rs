@@ -1,11 +1,7 @@
 use crate::error::{Result, ShellError};
 use crate::parser::lexer::Token;
 use crate::utils::{Descriptor, Redirection, RedirectionType};
-use std::{
-    iter::Peekable,
-    vec::IntoIter,
-    fmt,
-};
+use std::{fmt, iter::Peekable, vec::IntoIter};
 
 #[derive(Debug, Clone, Default)]
 pub struct ParsedCommand {
