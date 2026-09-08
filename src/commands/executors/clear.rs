@@ -8,7 +8,7 @@ pub fn execute_clear(parsed_cmd: &ParsedCommand) -> Result<()> {
     // This is a simple implementation that works on Unix-like systems and Windows
     let mut cmd = if cfg!(target_os = "windows") {
         let mut c = Command::new("cmd");
-        c.args(&["/C", "cls"]);
+        c.args(["/C", "cls"]);
         c
     } else {
         Command::new("clear")
