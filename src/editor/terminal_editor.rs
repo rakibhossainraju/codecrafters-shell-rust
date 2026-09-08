@@ -7,13 +7,19 @@ pub struct TerminalEditor {
     rl: Editor<EditorHelper, DefaultHistory>,
 }
 
+impl Default for TerminalEditor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TerminalEditor {
     pub fn new() -> Self {
         let config = Config::builder()
             .completion_type(CompletionType::List)
             .build();
         let mut rl = Editor::with_config(config).expect("Failed to initialize editor");
-        rl.set_helper(Some(EditorHelper::new()));
+        rl.set_helper(Some(EditorHelper::default()));
         TerminalEditor { rl }
     }
 
