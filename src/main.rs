@@ -7,7 +7,7 @@ use rustyline::error::ReadlineError;
 use std::env;
 
 fn main() {
-    let mut editor = TerminalEditor::new();
+    let mut editor = TerminalEditor::default();
     let mut state = ShellState::new();
 
     let history_file = env::var("HISTFILE").ok();
@@ -65,9 +65,9 @@ fn main() {
         state.jobs.print_done_job();
     }
 
-    if let Some(ref path) = history_file {
-        if let Err(e) = state.history.write_history(path) {
-            eprintln!("{}", e);
-        }
+    if let Some(ref path) = history_file
+        && let Err(e) = state.history.write_history(path)
+    {
+        eprintln!("{}", e);
     }
 }
