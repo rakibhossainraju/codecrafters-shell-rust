@@ -2,9 +2,9 @@ use strum::{Display, EnumString};
 
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
-use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Display)]
 pub enum Descriptor {
@@ -53,7 +53,6 @@ impl fmt::Display for Redirection {
         write!(f, "{}{}{}", self.descriptor, symbol, self.file)
     }
 }
-
 
 pub struct ResolvedReDirections {
     pub stdout: Option<File>,
