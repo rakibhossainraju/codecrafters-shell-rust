@@ -6,18 +6,10 @@ use std::io::ErrorKind;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
 
+#[derive(Default)]
 pub struct HistoryState {
     pub entries: Vec<String>,
     pub last_appended_index: usize,
-}
-
-impl Default for HistoryState {
-    fn default() -> Self {
-        Self {
-            entries: Vec::new(),
-            last_appended_index: 0,
-        }
-    }
 }
 
 impl HistoryState {
