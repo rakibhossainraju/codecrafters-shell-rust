@@ -59,7 +59,7 @@ impl JobState {
         self.jobs.push(new_job);
         self.reap_finished_jobs();
 
-        println!("[{}]    {}", job_id, pid);
+        println!("[{}] {}", job_id, pid);
         std::io::stdout().flush().unwrap();
 
         job_id
