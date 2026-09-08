@@ -72,11 +72,19 @@ fn backgrounding_a_builtin_still_honors_its_own_redirection() {
     let sandbox = Sandbox::new();
     let out = sandbox.run("echo redirected > out.txt &\n");
 
-    // Nothing but the job announcement should reach the shell's own stdout;
-    // the builtin's actual output went to the file instead.
+    // The builtin's own echoed output must never reach the terminal -- but
+    // "redirected" can still legitimately appear as part of a job-listing
+    // line (`[1]  +/- done    echo redirected >out.txt`) if `print_done_job`
+    // happens to fire after the backgrounded child already finished, since
+    // that line displays the job's command text, not its captured output.
+    // Check for the standalone echoed line specifically, not the substring.
     let captured = stdout(&out);
     assert!(captured.starts_with("[1] "));
-    assert!(!captured.contains("redirected"));
+    assert!(
+        captured.lines().all(|line| line != "redirected"),
+        "builtin's own output should never reach the terminal, got: {:?}",
+        captured
+    );
 
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
@@ -125,4 +133,51 @@ fn backgrounding_cd_does_not_affect_the_parent_shells_directory() {
         expected_pwd,
         lines
     );
+}
+
+/// Backgrounding a whole `&&` chain (see
+/// `executors::background::spawn_and_chain_job`) re-execs the shell to run
+/// every leaf in order with the same short-circuit logic the foreground REPL
+/// uses. Each leaf redirects to its own file rather than the terminal, so
+/// this can check ordering without racing the shared stdout pipe.
+///
+/// No polling needed here (unlike the single-builtin redirection test
+/// above): `spawn_and_chain_job` never redirects the *chain-runner
+/// process's own* stdio away from the inherited pipe, so `Sandbox::run`'s
+/// `wait_with_output` -- which blocks until every process holding that pipe
+/// open has exited -- doesn't return until the whole backgrounded chain has
+/// actually finished.
+#[test]
+fn backgrounding_an_and_chain_runs_every_leaf_in_order() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("echo a > a.txt && echo b > b.txt &\n");
+
+    assert!(stdout(&out).starts_with("[1] "));
+    assert_eq!(sandbox.read_file("a.txt"), "a\n");
+    assert_eq!(sandbox.read_file("b.txt"), "b\n");
+}
+
+/// `failer` (a fixture bin, see `Sandbox::install_fixture_bins`) exits 3
+/// with no output -- the chain's first leaf fails, so the second must never
+/// run, even in the background.
+#[test]
+fn backgrounding_an_and_chain_short_circuits_on_failure() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("failer && echo b > b.txt &\n");
+
+    assert!(stdout(&out).starts_with("[1] "));
+    assert!(!sandbox.file_exists("b.txt"));
+}
+
+/// A pipeline can be one leaf of a backgrounded chain
+/// (`spawn_and_chain_job`'s payload is a list of "one command or a whole
+/// pipeline" leaves, see `executors::pipeline_transfer::encode_and_chain`).
+#[test]
+fn backgrounding_an_and_chain_handles_a_pipeline_leaf() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("argecho hi | upper > up.txt && echo done > done.txt &\n");
+
+    assert!(stdout(&out).starts_with("[1] "));
+    assert_eq!(sandbox.read_file("up.txt"), "HI\n");
+    assert_eq!(sandbox.read_file("done.txt"), "done\n");
 }
