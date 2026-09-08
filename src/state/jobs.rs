@@ -1,4 +1,4 @@
-use std::process::Child;
+use std::{io::Write, process::Child};
 use strum::Display;
 
 #[derive(Debug, Default, PartialEq, Eq, Display)]
@@ -58,6 +58,10 @@ impl JobState {
         };
         self.jobs.push(new_job);
         self.reap_finished_jobs();
+
+        println!("[{}]    {}", job_id, pid);
+        std::io::stdout().flush().unwrap();
+
         job_id
     }
 
