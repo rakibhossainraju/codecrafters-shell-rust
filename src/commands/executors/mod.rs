@@ -8,4 +8,5 @@ pub mod help;
 pub mod history;
 pub mod jobs;
 pub mod pipeline;
+pub mod pipeline_transfer;
 pub mod pwd;

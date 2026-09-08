@@ -83,12 +83,18 @@ fn or_operator_is_not_implemented_and_silently_drops_the_second_command() {
 /// deterministically ordered. What *is* guaranteed: the job announcement
 /// (`[1] <pid>`) prints synchronously, before the shell moves on to
 /// `echo second`, and both commands' output eventually shows up.
+///
+/// Not asserted: an exact line count after removing the announcement.
+/// `main`'s REPL loop calls `print_done_job()` once after this whole line
+/// finishes, and if the backgrounded child happens to have already exited
+/// by then, a trailing "done" notification can show up too -- benign extra
+/// output, not something this test cares about either way.
 #[test]
 fn background_operator_runs_the_preceding_command_then_continues() {
     let sandbox = Sandbox::new();
     let out = sandbox.run("echo first & echo second\n");
     let captured = stdout(&out);
-    let mut lines: Vec<&str> = captured.lines().collect();
+    let lines: Vec<&str> = captured.lines().collect();
 
     let announcement_pos = lines
         .iter()
@@ -103,9 +109,8 @@ fn background_operator_runs_the_preceding_command_then_continues() {
         "job announcement must print before the shell moves on to the foreground command"
     );
 
-    lines.remove(announcement_pos);
-    lines.sort_unstable();
-    assert_eq!(lines, vec!["first", "second"]);
+    assert!(lines.contains(&"first"));
+    assert!(lines.contains(&"second"));
 
     assert_eq!(stderr(&out), "");
 }

@@ -36,14 +36,20 @@ fn jobs_returns_to_the_prompt_and_shell_keeps_running() {
 /// itself as a child (see `executors::background::spawn_builtin_job`). That
 /// child gets pushed into the job table exactly like an external command,
 /// so the usual `[<id>] <pid>` announcement should print for it too.
+///
+/// The announcement (printed synchronously by the parent) and the child's
+/// own "hi" both land on the same unredirected stdout pipe here, so their
+/// relative order isn't guaranteed under scheduling pressure -- search for
+/// the announcement instead of assuming it's the first line.
 #[test]
 fn backgrounding_a_builtin_prints_a_job_announcement_with_a_real_pid() {
     let sandbox = Sandbox::new();
     let out = sandbox.run("echo hi &\n");
 
-    let announcement = stdout(&out)
+    let captured = stdout(&out);
+    let announcement = captured
         .lines()
-        .next()
+        .find(|line| line.starts_with("[1] "))
         .expect("should print a job announcement")
         .to_string();
     let pid_str = announcement
@@ -91,6 +97,13 @@ fn backgrounding_a_builtin_still_honors_its_own_redirection() {
 /// working directory only; the parent's `pwd` must still show the original
 /// directory, unconditionally and regardless of the child's timing (its
 /// effect can never reach back into this process).
+///
+/// Not asserted on position: `main`'s REPL loop calls `print_done_job()`
+/// after every line, including right after backgrounding `cd sub &` and
+/// again after `pwd` -- if the backgrounded child happens to finish inside
+/// that window, a "done" notification can land between the announcement and
+/// `pwd`'s output, or even after it. Presence, not position, is what's
+/// actually guaranteed here.
 #[test]
 fn backgrounding_cd_does_not_affect_the_parent_shells_directory() {
     let sandbox = Sandbox::new();
@@ -101,9 +114,15 @@ fn backgrounding_cd_does_not_affect_the_parent_shells_directory() {
     let lines: Vec<&str> = captured.lines().collect();
 
     assert!(
-        lines.first().is_some_and(|l| l.starts_with("[1] ")),
-        "expected a job announcement first, got: {:?}",
+        lines.iter().any(|l| l.starts_with("[1] ")),
+        "expected a job announcement somewhere, got: {:?}",
         lines
     );
-    assert_eq!(lines.get(1), Some(&canon(&sandbox.work_dir).as_str()));
+    let expected_pwd = canon(&sandbox.work_dir);
+    assert!(
+        lines.iter().any(|&l| l == expected_pwd),
+        "expected pwd's output ({}) somewhere in: {:?}",
+        expected_pwd,
+        lines
+    );
 }

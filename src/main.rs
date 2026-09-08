@@ -14,6 +14,12 @@ fn main() {
     {
         commands::run_internal_builtin(&argv[marker_pos + 1..]);
     }
+    if let Some(marker_pos) = argv
+        .iter()
+        .position(|arg| arg == commands::INTERNAL_PIPELINE_MARKER)
+    {
+        commands::run_internal_pipeline(&argv[marker_pos + 1..]);
+    }
 
     let mut editor = TerminalEditor::default();
     let mut state = ShellState::new();

@@ -68,6 +68,48 @@ pub fn run_internal_builtin(args: &[String]) -> ! {
     std::process::exit(exit_code);
 }
 
+/// Hidden argv marker for backgrounding a whole pipeline (`cmd1 | cmd2 &`),
+/// the same idea as [`INTERNAL_BUILTIN_MARKER`] but at pipeline granularity:
+/// a pipeline's builtin stages have no OS process of their own either (they
+/// run in-process, capturing output into memory — see `Pipeline::execute_builtin`),
+/// so there's no way to make part of a pipeline async without giving the
+/// *whole* pipeline a process boundary. One re-exec'd child runs the entire
+/// pipeline via the existing, unmodified `execute_pipeline`, and is tracked
+/// as one job. See `executors::background::spawn_pipeline_job`.
+pub const INTERNAL_PIPELINE_MARKER: &str = "--__shell-internal-run-pipeline";
+
+/// Entry point for a re-exec'd child spawned by `spawn_pipeline_job`. `args`
+/// is a single element: the whole pipeline encoded by
+/// `executors::pipeline_transfer::encode_pipeline`. Each stage's own
+/// redirects travel inside that payload and are resolved by
+/// `execute_pipeline` itself, exactly as they are for a foreground pipeline
+/// — nothing about that logic changes, only where it runs.
+pub fn run_internal_pipeline(args: &[String]) -> ! {
+    use crate::commands::executors::pipeline_transfer::decode_pipeline;
+
+    let mut state = ShellState::new();
+    if let Ok(histfile) = std::env::var("HISTFILE") {
+        let _ = state.history.load_history(&histfile);
+    }
+
+    let exit_code = match args.first().map(|payload| decode_pipeline(payload)) {
+        Some(Ok(cmds)) => match execute_pipeline(cmds, &mut state) {
+            Ok(()) => 0,
+            Err(e) => {
+                eprintln!("{}", e);
+                1
+            }
+        },
+        Some(Err(e)) => {
+            eprintln!("{}", e);
+            1
+        }
+        None => 1,
+    };
+
+    std::process::exit(exit_code);
+}
+
 pub fn execute_ast(ast: ASTNodes, state: &mut ShellState) -> Result<()> {
     for ast_node in ast {
         ast_executor(ast_node, state)?;

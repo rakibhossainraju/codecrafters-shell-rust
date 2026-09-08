@@ -27,7 +27,7 @@ impl From<char> for Descriptor {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Display)]
+#[derive(Debug, Clone, PartialEq, Display, EnumString)]
 pub enum RedirectionType {
     #[strum(to_string = "<")]
     Input,
