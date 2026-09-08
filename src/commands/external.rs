@@ -72,6 +72,6 @@ impl TryFrom<ParsedCommand> for ExternalCommand {
 
     fn try_from(parsed: ParsedCommand) -> Result<Self> {
         let cmd_name = parsed.cmd.clone();
-        Self::try_resolve(parsed).ok_or_else(|| ShellError::CommandNotFound(cmd_name))
+        Self::try_resolve(parsed).ok_or(ShellError::CommandNotFound(cmd_name))
     }
 }

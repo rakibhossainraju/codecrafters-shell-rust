@@ -28,7 +28,7 @@ impl Command {
         let cmd_name = parsed_cmd.cmd.clone();
         ExternalCommand::try_resolve(parsed_cmd)
             .map(Command::External)
-            .ok_or_else(|| ShellError::CommandNotFound(cmd_name))
+            .ok_or(ShellError::CommandNotFound(cmd_name))
     }
 
     pub fn execute<'a>(
