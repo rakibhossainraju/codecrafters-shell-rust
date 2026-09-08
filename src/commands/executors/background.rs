@@ -48,6 +48,16 @@ pub fn execute_background(ast: ASTNode, state: &mut ShellState) -> Result<()> {
         ASTNode::Background(_) => {
             unreachable!("the parser never nests Background inside Background")
         }
+        ASTNode::And(_, _) => {
+            // Backgrounding a whole `&&` chain (`a && b &`) would need its
+            // own re-exec + transfer scheme, same idea as
+            // `spawn_pipeline_job` but for an And-tree instead of a flat
+            // command list. Not built yet -- fail clearly rather than
+            // silently running it in the foreground or panicking.
+            return Err(ShellError::SyntaxError(
+                "backgrounding a `&&` chain is not yet supported".to_string(),
+            ));
+        }
     }
     Ok(())
 }

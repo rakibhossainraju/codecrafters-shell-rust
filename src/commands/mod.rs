@@ -117,28 +117,91 @@ pub fn execute_ast(ast: ASTNodes, state: &mut ShellState) -> Result<()> {
     Ok(())
 }
 
-fn ast_executor(ast_node: ASTNode, state: &mut ShellState) -> Result<()> {
+/// Executes one top-level AST item and reports whether it succeeded (exit
+/// status 0 for an external command, `Ok(())` for a builtin).
+///
+/// Only `ShellError::ExitOut` propagates as a hard `Err` out of here — every
+/// other execution failure (command not found, a builtin's own error, a
+/// nonzero exit code) is printed immediately, exactly as before this
+/// function returned `Result<bool>`, and folded into `Ok(false)` rather than
+/// aborting. That's the part `&&` actually needs: the left side failing
+/// has to be visible (printed, and skip the right side) without also
+/// preventing an unrelated sibling item on the same line from running.
+fn ast_executor(ast_node: ASTNode, state: &mut ShellState) -> Result<bool> {
     match ast_node {
         ASTNode::Simple(parsed_cmd) => {
-            let cmd = Command::resolve(parsed_cmd)?;
+            let cmd = match Command::resolve(parsed_cmd) {
+                Ok(cmd) => cmd,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    return Ok(false);
+                }
+            };
 
             // Check for exit before executing (to break the loop)
             if matches!(cmd, Command::Builtin(BuiltinCommands::Exit, _)) {
                 return Err(ShellError::ExitOut);
             }
 
-            // Execute the command with remaining arguments
-            cmd.execute(None, None, state)?;
-            // If we get here, the command executed successfully
-            Ok(())
+            Ok(run_simple_command(&cmd, state))
         }
-        ASTNode::Pipeline(cmds) => {
-            execute_pipeline(cmds, state)?;
-            Ok(())
+        ASTNode::Pipeline(cmds) => match execute_pipeline(cmds, state) {
+            Ok(()) => Ok(true),
+            Err(e) => {
+                eprintln!("{}", e);
+                Ok(false)
+            }
+        },
+        ASTNode::Background(ast) => match execute_background(*ast, state) {
+            Ok(()) => Ok(true),
+            Err(ShellError::ExitOut) => Err(ShellError::ExitOut),
+            Err(e) => {
+                eprintln!("{}", e);
+                Ok(false)
+            }
+        },
+        ASTNode::And(left, right) => {
+            if ast_executor(*left, state)? {
+                ast_executor(*right, state)
+            } else {
+                Ok(false)
+            }
         }
-        ASTNode::Background(ast) => {
-            execute_background(*ast, state)?;
-            Ok(())
-        }
+    }
+}
+
+/// Runs a resolved, non-`exit` command and reports whether it succeeded.
+/// Builtins already use `Result` for exactly this (`Ok` = success, `Err` =
+/// failure), so that case just prints and folds like everywhere else in
+/// `ast_executor`. Externals need their *real* exit code, though —
+/// `Command::execute`'s `Result<()>` only signals whether the OS could
+/// spawn and wait for the process at all, not what it actually exited
+/// with (see `executors::external::execute_external_command`) — so this
+/// spawns and waits directly instead of going through it.
+fn run_simple_command(cmd: &Command, state: &mut ShellState) -> bool {
+    match cmd {
+        Command::Builtin(_, _) => match cmd.execute(None, None, state) {
+            Ok(()) => true,
+            Err(e) => {
+                eprintln!("{}", e);
+                false
+            }
+        },
+        Command::External(external_cmd) => match external_cmd.spawn(None, None) {
+            Ok(mut child) => match child.wait() {
+                Ok(status) => status.success(),
+                Err(_) => {
+                    eprintln!(
+                        "{}",
+                        ShellError::WaitError(external_cmd.parsed_cmd.cmd.clone())
+                    );
+                    false
+                }
+            },
+            Err(e) => {
+                eprintln!("{}", e);
+                false
+            }
+        },
     }
 }

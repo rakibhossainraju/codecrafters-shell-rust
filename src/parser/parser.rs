@@ -36,7 +36,7 @@ pub enum ASTNode {
     Simple(ParsedCommand),
     Pipeline(Vec<ParsedCommand>),
     Background(Box<ASTNode>),
-    // And(Box<ASTNode>, Box<ASTNode>),
+    And(Box<ASTNode>, Box<ASTNode>),
     // Or(Box<ASTNode>, Box<ASTNode>),
 }
 pub type ASTNodes = Vec<ASTNode>;
@@ -60,10 +60,8 @@ impl Parser {
 
     fn parse(&mut self) -> Result<ASTNodes> {
         let mut commands = Vec::new();
-        // In the future, this will call `self.parse_and_or()`
-        // For now, the highest level we have is a pipeline.
         while self.tokens.peek().is_some() {
-            let ast = self.parse_pipeline()?;
+            let ast = self.parse_and_or()?;
             if let Some(Token::Background) = self.tokens.peek() {
                 self.tokens.next(); // Consumes '&'
                 if let Some(Token::Background) = self.tokens.peek() {
@@ -72,6 +70,16 @@ impl Parser {
                 commands.push(ASTNode::Background(Box::new(ast)));
             } else {
                 commands.push(ast);
+            }
+
+            // `||` is tokenized but has no And/Or-tree handling yet (see
+            // Known gaps in AGENTS.md) -- silently drop everything from here
+            // to the end of the line, matching the long-documented current
+            // behavior, instead of feeding the leftover operator back into
+            // `parse_and_or` on the next loop iteration, where it would
+            // immediately fail as an empty command.
+            if let Some(Token::Or) = self.tokens.peek() {
+                break;
             }
         }
 
@@ -82,6 +90,25 @@ impl Parser {
         }
 
         Ok(commands)
+    }
+
+    /// `left && right [&& right2 ...]`, left-associative. `parse_pipeline`
+    /// handles one pipeline; this chains them on `&&`. `||` isn't handled
+    /// here at all (see the gap note in `parse` above) -- encountering one
+    /// simply ends the chain, leaving it for `parse` to drop.
+    fn parse_and_or(&mut self) -> Result<ASTNode> {
+        let mut node = self.parse_pipeline()?;
+
+        while let Some(Token::And) = self.tokens.peek() {
+            self.tokens.next(); // Consumes '&&'
+            // A trailing `&&` with nothing after it should be the same
+            // "unexpected empty command" error as a trailing `|`, which
+            // `parse_pipeline` -> `parse_simple_command` already produces.
+            let rhs = self.parse_pipeline()?;
+            node = ASTNode::And(Box::new(node), Box::new(rhs));
+        }
+
+        Ok(node)
     }
 
     fn parse_pipeline(&mut self) -> Result<ASTNode> {
@@ -285,14 +312,71 @@ mod tests {
         assert!(err.to_string().contains("expected file name after >"));
     }
 
-    /// Documents current (incomplete) behavior: `&&`/`||` are tokenized but
-    /// the parser has no And/Or handling yet, so anything after the first
-    /// pipeline segment is silently dropped rather than erroring or being
-    /// executed. `&` (Background) is no longer part of this gap — see the
-    /// `background_*` tests below.
     #[test]
-    fn and_or_operators_still_silently_truncate_the_command() {
+    fn and_chains_two_commands_into_an_and_node() {
         match parse_one("echo a && echo b") {
+            ASTNode::And(left, right) => {
+                match *left {
+                    ASTNode::Simple(cmd) => {
+                        assert_eq!(cmd.cmd, "echo");
+                        assert_eq!(cmd.args, vec!["a".to_string()]);
+                    }
+                    other => panic!("expected Simple on the left, got {:?}", other),
+                }
+                match *right {
+                    ASTNode::Simple(cmd) => {
+                        assert_eq!(cmd.cmd, "echo");
+                        assert_eq!(cmd.args, vec!["b".to_string()]);
+                    }
+                    other => panic!("expected Simple on the right, got {:?}", other),
+                }
+            }
+            other => panic!("expected And, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn and_is_left_associative_across_multiple_operators() {
+        // `a && b && c` should be `(a && b) && c`, not `a && (b && c)`.
+        match parse_one("a && b && c") {
+            ASTNode::And(left, right) => {
+                assert!(matches!(*right, ASTNode::Simple(cmd) if cmd.cmd == "c"));
+                match *left {
+                    ASTNode::And(inner_left, inner_right) => {
+                        assert!(matches!(*inner_left, ASTNode::Simple(cmd) if cmd.cmd == "a"));
+                        assert!(matches!(*inner_right, ASTNode::Simple(cmd) if cmd.cmd == "b"));
+                    }
+                    other => panic!("expected nested And on the left, got {:?}", other),
+                }
+            }
+            other => panic!("expected And, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn and_chains_whole_pipelines_not_just_simple_commands() {
+        match parse_one("echo hi | tr a-z A-Z && echo done") {
+            ASTNode::And(left, right) => {
+                assert!(matches!(*left, ASTNode::Pipeline(cmds) if cmds.len() == 2));
+                assert!(matches!(*right, ASTNode::Simple(cmd) if cmd.cmd == "echo"));
+            }
+            other => panic!("expected And, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn trailing_and_is_a_syntax_error() {
+        let err = parse("echo hi &&").unwrap_err();
+        assert!(err.to_string().contains("unexpected empty command"));
+    }
+
+    /// Documents current (incomplete) behavior: `||` is tokenized but the
+    /// parser has no Or handling yet, so anything from the first `||`
+    /// onward is silently dropped rather than erroring or being executed.
+    /// `&&` is no longer part of this gap -- see the `and_*` tests above.
+    #[test]
+    fn or_operator_still_silently_truncates_the_command() {
+        match parse_one("echo a || echo b") {
             ASTNode::Simple(cmd) => {
                 assert_eq!(cmd.cmd, "echo");
                 assert_eq!(cmd.args, vec!["a".to_string()]);
