@@ -1,11 +1,13 @@
 //! Serializes/deserializes an entire pipeline (`Vec<ParsedCommand>`,
-//! including each stage's own redirects) into a single string that can be
-//! passed as one argv entry to a re-exec'd child process.
+//! including each stage's own redirects) -- or a whole `&&` chain of them --
+//! into a single string that can be passed as one argv entry to a re-exec'd
+//! child process.
 //!
-//! Used by `executors::background::spawn_pipeline_job` (encode, in the
-//! parent, before spawning) and `commands::run_internal_pipeline` (decode,
-//! in the re-exec'd child). See `executors::background` for why
-//! backgrounding a pipeline re-execs the shell binary at all.
+//! Used by `executors::background::spawn_pipeline_job`/`spawn_and_chain_job`
+//! (encode, in the parent, before spawning) and
+//! `commands::run_internal_pipeline`/`run_internal_and_chain` (decode, in
+//! the re-exec'd child). See `executors::background` for why backgrounding
+//! either of these re-execs the shell binary at all.
 //!
 //! Every string is written length-prefixed (`<byte-len>:<bytes>`) rather
 //! than joined with a delimiter like `|`. A delimiter can always collide
@@ -71,6 +73,33 @@ pub fn decode_pipeline(data: &str) -> Result<Vec<ParsedCommand>> {
         });
     }
     Ok(cmds)
+}
+
+/// A `&&` chain (`a && b | c && d`) always flattens to a left-to-right list
+/// of leaves, each either a single command or a whole pipeline -- see
+/// `executors::background::flatten_and_chain`. Each leaf is just another
+/// `Vec<ParsedCommand>` (one element for a plain command, several for a
+/// pipeline), so this reuses `encode_pipeline`/`decode_pipeline` per leaf,
+/// with one more length-prefixed layer wrapped around the whole list.
+pub fn encode_and_chain(chains: &[Vec<ParsedCommand>]) -> String {
+    let mut out = String::new();
+    write_usize(&mut out, chains.len());
+    for cmds in chains {
+        write_str(&mut out, &encode_pipeline(cmds));
+    }
+    out
+}
+
+pub fn decode_and_chain(data: &str) -> Result<Vec<Vec<ParsedCommand>>> {
+    let mut pos = 0;
+    let chain_count = read_usize(data, &mut pos).ok_or_else(malformed)?;
+
+    let mut chains = Vec::with_capacity(chain_count);
+    for _ in 0..chain_count {
+        let payload = read_str(data, &mut pos).ok_or_else(malformed)?;
+        chains.push(decode_pipeline(&payload)?);
+    }
+    Ok(chains)
 }
 
 fn malformed() -> ShellError {
@@ -180,5 +209,45 @@ mod tests {
     #[test]
     fn rejects_garbage_payloads() {
         assert!(decode_pipeline("not a valid payload").is_err());
+    }
+
+    fn cmd(name: &str) -> ParsedCommand {
+        ParsedCommand {
+            cmd: name.to_string(),
+            args: vec![],
+            redirects: vec![],
+        }
+    }
+
+    #[test]
+    fn round_trips_a_chain_mixing_simple_commands_and_pipelines() {
+        let chains = vec![
+            vec![cmd("a")],           // a plain command leaf
+            vec![cmd("b"), cmd("c")], // a pipeline leaf: b | c
+            vec![cmd("d")],
+        ];
+
+        let encoded = encode_and_chain(&chains);
+        let decoded = decode_and_chain(&encoded).expect("should decode cleanly");
+
+        assert_eq!(decoded.len(), chains.len());
+        for (d, c) in decoded.iter().zip(chains.iter()) {
+            assert_eq!(d.len(), c.len());
+            for (dd, cc) in d.iter().zip(c.iter()) {
+                assert_eq!(dd.cmd, cc.cmd);
+            }
+        }
+    }
+
+    #[test]
+    fn round_trips_an_empty_chain() {
+        let encoded = encode_and_chain(&[]);
+        let decoded = decode_and_chain(&encoded).expect("should decode cleanly");
+        assert!(decoded.is_empty());
+    }
+
+    #[test]
+    fn rejects_garbage_and_chain_payloads() {
+        assert!(decode_and_chain("not a valid payload").is_err());
     }
 }

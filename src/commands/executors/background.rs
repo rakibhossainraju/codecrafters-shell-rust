@@ -1,5 +1,8 @@
 use crate::{
-    commands::{BuiltinCommands, Command, INTERNAL_BUILTIN_MARKER, INTERNAL_PIPELINE_MARKER},
+    commands::{
+        BuiltinCommands, Command, INTERNAL_AND_CHAIN_MARKER, INTERNAL_BUILTIN_MARKER,
+        INTERNAL_PIPELINE_MARKER,
+    },
     error::{Result, ShellError},
     parser::{ASTNode, ParsedCommand},
     state::ShellState,
@@ -8,7 +11,7 @@ use crate::{
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command as OsCommand, Stdio};
 
-use super::pipeline_transfer::encode_pipeline;
+use super::pipeline_transfer::{encode_and_chain, encode_pipeline};
 
 pub fn execute_background(ast: ASTNode, state: &mut ShellState) -> Result<()> {
     match ast {
@@ -48,15 +51,10 @@ pub fn execute_background(ast: ASTNode, state: &mut ShellState) -> Result<()> {
         ASTNode::Background(_) => {
             unreachable!("the parser never nests Background inside Background")
         }
-        ASTNode::And(_, _) => {
-            // Backgrounding a whole `&&` chain (`a && b &`) would need its
-            // own re-exec + transfer scheme, same idea as
-            // `spawn_pipeline_job` but for an And-tree instead of a flat
-            // command list. Not built yet -- fail clearly rather than
-            // silently running it in the foreground or panicking.
-            return Err(ShellError::SyntaxError(
-                "backgrounding a `&&` chain is not yet supported".to_string(),
-            ));
+        ASTNode::And(left, right) => {
+            let cmd_str = format!("{} && {}", describe_ast(&left), describe_ast(&right));
+            let child = spawn_and_chain_job(ASTNode::And(left, right))?;
+            state.jobs.push_job(child, cmd_str);
         }
     }
     Ok(())
@@ -145,6 +143,83 @@ fn spawn_pipeline_job(cmds: &[ParsedCommand]) -> Result<Child> {
 
     cmd.spawn().map_err(|source| ShellError::ExecutionError {
         command: "pipeline".to_string(),
+        source,
+    })
+}
+
+/// Human-readable rendering of an `&&` chain (or one of its leaves), for the
+/// `jobs` listing's command column -- e.g. `"echo a | tr a-z A-Z && echo b"`.
+/// Never called on a `Background` node: `parse_and_or`'s leaves are always
+/// `Simple`/`Pipeline`, and `Background` can't nest inside `And` either
+/// (mirrors the same guarantee `execute_background`'s own `Background(_)`
+/// arm already relies on).
+fn describe_ast(node: &ASTNode) -> String {
+    match node {
+        ASTNode::Simple(cmd) => cmd.to_string(),
+        ASTNode::Pipeline(cmds) => cmds
+            .iter()
+            .map(|c| c.to_string())
+            .collect::<Vec<_>>()
+            .join(" | "),
+        ASTNode::And(left, right) => format!("{} && {}", describe_ast(left), describe_ast(right)),
+        ASTNode::Background(_) => unreachable!("And never nests Background"),
+    }
+}
+
+/// Unwraps a left-leaning `And` tree (`((a && b) && c)`, which is the only
+/// shape `parse_and_or` ever builds) into its leaves in left-to-right order
+/// (`[a, b, c]`). Written to handle arbitrary nesting on either side, not
+/// just that specific shape, so it keeps working if the parser's grammar
+/// ever grows right-nesting too.
+fn flatten_and_chain(node: ASTNode) -> Vec<ASTNode> {
+    match node {
+        ASTNode::And(left, right) => {
+            let mut leaves = flatten_and_chain(*left);
+            leaves.extend(flatten_and_chain(*right));
+            leaves
+        }
+        leaf => vec![leaf],
+    }
+}
+
+/// Backgrounds a whole `&&` chain (`a && b &`) the same way a pipeline is
+/// backgrounded: flatten it into its leaves, re-exec this shell binary as a
+/// child process told to run that whole chain (via
+/// `commands::run_internal_and_chain`, which short-circuits using the same
+/// `ast_executor` the foreground REPL uses) and exit, and track the one
+/// resulting child as one job.
+///
+/// Like `spawn_pipeline_job`, no redirects are resolved here -- each leaf's
+/// own redirects (and each pipeline leaf's per-stage redirects) travel
+/// inside the encoded payload and are resolved inside the child by the
+/// exact same code that already handles them for a foreground command.
+fn spawn_and_chain_job(node: ASTNode) -> Result<Child> {
+    let leaves = flatten_and_chain(node);
+    let chains: Vec<Vec<ParsedCommand>> = leaves
+        .into_iter()
+        .map(|leaf| match leaf {
+            ASTNode::Simple(cmd) => vec![cmd],
+            ASTNode::Pipeline(cmds) => cmds,
+            other => unreachable!(
+                "parse_and_or only ever nests Simple/Pipeline leaves under And, got {:?}",
+                other
+            ),
+        })
+        .collect();
+
+    let current_exe = std::env::current_exe().map_err(|source| ShellError::ExecutionError {
+        command: "&&".to_string(),
+        source,
+    })?;
+
+    let mut cmd = OsCommand::new(current_exe);
+    cmd.arg0("&&");
+    cmd.arg(INTERNAL_AND_CHAIN_MARKER);
+    cmd.arg(encode_and_chain(&chains));
+    cmd.stdin(Stdio::null());
+
+    cmd.spawn().map_err(|source| ShellError::ExecutionError {
+        command: "&&".to_string(),
         source,
     })
 }

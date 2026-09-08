@@ -8,17 +8,29 @@ use std::env;
 
 fn main() {
     let argv: Vec<String> = env::args().collect();
-    if let Some(marker_pos) = argv
-        .iter()
-        .position(|arg| arg == commands::INTERNAL_BUILTIN_MARKER)
-    {
-        commands::run_internal_builtin(&argv[marker_pos + 1..]);
-    }
-    if let Some(marker_pos) = argv
-        .iter()
-        .position(|arg| arg == commands::INTERNAL_PIPELINE_MARKER)
-    {
-        commands::run_internal_pipeline(&argv[marker_pos + 1..]);
+    // Each of these hidden modes lets a re-exec'd child run a specific slice
+    // of shell logic non-interactively and exit, instead of starting the
+    // REPL -- see `executors::background` for why backgrounding a builtin,
+    // a pipeline, or a `&&` chain needs its own process boundary at all.
+    type InternalMode = (&'static str, fn(&[String]) -> !);
+    let internal_modes: [InternalMode; 3] = [
+        (
+            commands::INTERNAL_BUILTIN_MARKER,
+            commands::run_internal_builtin,
+        ),
+        (
+            commands::INTERNAL_PIPELINE_MARKER,
+            commands::run_internal_pipeline,
+        ),
+        (
+            commands::INTERNAL_AND_CHAIN_MARKER,
+            commands::run_internal_and_chain,
+        ),
+    ];
+    for (marker, run) in internal_modes {
+        if let Some(marker_pos) = argv.iter().position(|arg| arg == marker) {
+            run(&argv[marker_pos + 1..]);
+        }
     }
 
     let mut editor = TerminalEditor::default();

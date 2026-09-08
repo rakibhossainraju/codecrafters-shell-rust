@@ -110,6 +110,70 @@ pub fn run_internal_pipeline(args: &[String]) -> ! {
     std::process::exit(exit_code);
 }
 
+/// Hidden argv marker for backgrounding a whole `&&` chain (`a && b &`), the
+/// same idea as [`INTERNAL_PIPELINE_MARKER`] one level up: a chain's leaves
+/// are `Simple`/`Pipeline` nodes with no OS process boundary between them on
+/// their own, so short-circuiting has to happen somewhere, and giving the
+/// *whole chain* one process is what lets it reuse everything that already
+/// exists (`ast_executor`'s short-circuit logic, `execute_pipeline`) instead
+/// of re-implementing `&&` semantics a second time just for the backgrounded
+/// case. See `executors::background::spawn_and_chain_job`.
+pub const INTERNAL_AND_CHAIN_MARKER: &str = "--__shell-internal-run-and-chain";
+
+/// Entry point for a re-exec'd child spawned by `spawn_and_chain_job`.
+/// `args` is a single element: the chain's leaves (each a command or a
+/// whole pipeline), encoded by
+/// `executors::pipeline_transfer::encode_and_chain`. Runs them in order,
+/// short-circuiting on the first failure, via the same `ast_executor` the
+/// foreground REPL loop uses — so the short-circuit rule only exists in one
+/// place.
+pub fn run_internal_and_chain(args: &[String]) -> ! {
+    use crate::commands::executors::pipeline_transfer::decode_and_chain;
+
+    let mut state = ShellState::new();
+    if let Ok(histfile) = std::env::var("HISTFILE") {
+        let _ = state.history.load_history(&histfile);
+    }
+
+    let exit_code = match args.first().map(|payload| decode_and_chain(payload)) {
+        Some(Ok(chains)) => run_and_chain(chains, &mut state),
+        Some(Err(e)) => {
+            eprintln!("{}", e);
+            1
+        }
+        None => 1,
+    };
+
+    std::process::exit(exit_code);
+}
+
+/// Runs each leaf of a decoded `&&` chain in order via `ast_executor`,
+/// stopping at the first failure. `ast_executor` only ever returns `Err` for
+/// `ShellError::ExitOut` (see its doc comment) -- if a leaf is literally
+/// `exit`, that should end *this* re-exec'd subshell, not propagate
+/// anywhere, so it's treated as a clean stop here rather than re-raised.
+fn run_and_chain(chains: Vec<Vec<ParsedCommand>>, state: &mut ShellState) -> i32 {
+    let mut succeeded = true;
+    for cmds in chains {
+        if !succeeded {
+            break;
+        }
+        let node = match cmds.len() {
+            1 => ASTNode::Simple(cmds.into_iter().next().expect("len checked above")),
+            _ => ASTNode::Pipeline(cmds),
+        };
+        succeeded = match ast_executor(node, state) {
+            Ok(ok) => ok,
+            Err(ShellError::ExitOut) => return 0,
+            Err(e) => {
+                eprintln!("{}", e);
+                false
+            }
+        };
+    }
+    i32::from(!succeeded)
+}
+
 pub fn execute_ast(ast: ASTNodes, state: &mut ShellState) -> Result<()> {
     for ast_node in ast {
         ast_executor(ast_node, state)?;
