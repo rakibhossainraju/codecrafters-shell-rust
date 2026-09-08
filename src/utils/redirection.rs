@@ -74,7 +74,6 @@ impl ResolvedReDirections {
                     .truncate(true)
                     .open(&redirect.file),
                 RedirectionType::Append => OpenOptions::new()
-                    .write(true)
                     .create(true)
                     .append(true)
                     .open(&redirect.file),
