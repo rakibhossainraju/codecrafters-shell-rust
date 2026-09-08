@@ -39,7 +39,7 @@ fn ast_executor(ast_node: ASTNode, state: &mut ShellState) -> Result<()> {
             Ok(())
         }
         ASTNode::Background(ast) => {
-            execute_background(ast, state)?;
+            execute_background(*ast, state)?;
             Ok(())
         }
     }

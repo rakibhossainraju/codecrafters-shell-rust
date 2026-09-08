@@ -6,8 +6,8 @@ use crate::{
 };
 use std::io::{Read, Write};
 
-pub fn execute_background(ast: Box<ASTNode>, state: &mut ShellState) -> Result<()> {
-    match *ast {
+pub fn execute_background(ast: ASTNode, state: &mut ShellState) -> Result<()> {
+    match ast {
         ASTNode::Simple(parsed_cmd) => {
             let cmd = Command::resolve(parsed_cmd)?;
 
