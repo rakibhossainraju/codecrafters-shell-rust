@@ -55,15 +55,41 @@ fn trailing_pipe_is_a_syntax_error() {
     assert!(stdout(&out).contains("still-alive"));
 }
 
-/// Documents current (incomplete) behavior: `&&` is tokenized but the parser
-/// has no And/Or handling, so only the first command runs and the rest of
-/// the line is silently dropped -- no error, no second command execution.
 #[test]
-fn and_operator_is_not_implemented_and_silently_drops_the_second_command() {
+fn and_runs_the_right_side_when_the_left_side_succeeds() {
     let sandbox = Sandbox::new();
     let out = sandbox.run("echo first && echo second\n");
-    assert_eq!(stdout(&out), "first\n");
+    assert_eq!(stdout(&out), "first\nsecond\n");
     assert_eq!(stderr(&out), "");
+}
+
+/// `failer` (a fixture bin, see `Sandbox::install_fixture_bins`) exits 3
+/// with no output -- the left side ran, but failed, so the right side must
+/// not run at all.
+#[test]
+fn and_skips_the_right_side_when_the_left_side_exits_nonzero() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("failer && echo second\n");
+    assert_eq!(stdout(&out), "");
+}
+
+/// A left side that doesn't even resolve (command not found) counts as a
+/// failure for `&&` purposes too -- the error still prints, the right side
+/// still gets skipped, and unlike a hard parser/IO error the shell survives
+/// to run the next line normally.
+#[test]
+fn and_skips_the_right_side_when_the_left_side_is_not_found() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("nosuchcmd && echo second\necho still-alive\n");
+    assert!(stderr(&out).contains("nosuchcmd"));
+    assert_eq!(stdout(&out), "still-alive\n");
+}
+
+#[test]
+fn and_chains_more_than_two_commands() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("echo a && echo b && echo c\n");
+    assert_eq!(stdout(&out), "a\nb\nc\n");
 }
 
 /// Same gap for `||`.

@@ -1,7 +1,7 @@
 mod support;
 
-use support::{Sandbox, stderr, stdout};
 use std::time::{Duration, Instant};
+use support::{Sandbox, stderr, stdout};
 
 fn canon(p: &std::path::Path) -> String {
     std::fs::canonicalize(p).unwrap().display().to_string()
