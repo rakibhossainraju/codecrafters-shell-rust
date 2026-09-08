@@ -7,6 +7,14 @@ use rustyline::error::ReadlineError;
 use std::env;
 
 fn main() {
+    let argv: Vec<String> = env::args().collect();
+    if let Some(marker_pos) = argv
+        .iter()
+        .position(|arg| arg == commands::INTERNAL_BUILTIN_MARKER)
+    {
+        commands::run_internal_builtin(&argv[marker_pos + 1..]);
+    }
+
     let mut editor = TerminalEditor::default();
     let mut state = ShellState::new();
 
