@@ -7,16 +7,12 @@ use std::mem;
 use std::process::{Child, ChildStdout, Stdio};
 
 /// Represents the output of a command that will be used as the input for the next command in the pipeline
+#[derive(Default)]
 pub enum PipelineLink {
+    #[default]
     None,
     ChildStdout(ChildStdout),
     Buffer(Vec<u8>),
-}
-
-impl Default for PipelineLink {
-    fn default() -> Self {
-        PipelineLink::None
-    }
 }
 
 impl PipelineLink {
@@ -99,10 +95,10 @@ impl<'a> Pipeline<'a> {
         let mut child = external_cmd.spawn(stdin_config, stdout_config)?;
 
         // If the previous command was a builtin, we need to manually write its captured output to the new child's stdin
-        if let PipelineLink::Buffer(buff) = mem::take(&mut self.previous_link) {
-            if let Some(mut stdin) = child.stdin.take() {
-                stdin.write_all(&buff)?;
-            }
+        if let PipelineLink::Buffer(buff) = mem::take(&mut self.previous_link)
+            && let Some(mut stdin) = child.stdin.take()
+        {
+            stdin.write_all(&buff)?;
         }
 
         if !is_last {

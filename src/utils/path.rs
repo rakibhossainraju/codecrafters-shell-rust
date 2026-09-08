@@ -1,7 +1,7 @@
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub fn get_os_paths() -> Option<Vec<PathBuf>> {
     env::var_os("PATH").map(|os_path| env::split_paths(&os_path).collect())
@@ -11,7 +11,7 @@ pub fn get_os_paths() -> Option<Vec<PathBuf>> {
 //     env::current_dir().ok()?.join(path).to_str().map(String::from)
 // }
 
-pub fn is_file_executable(path: &PathBuf) -> bool {
+pub fn is_file_executable(path: &Path) -> bool {
     if !path.is_file() {
         return false;
     }
@@ -43,7 +43,7 @@ pub fn get_executables_paths() -> Vec<PathBuf> {
         .flatten()
         .filter_map(|entry| entry.ok())
         .map(|e| e.path())
-        .filter(is_file_executable)
+        .filter(|path| is_file_executable(path))
         .collect()
 }
 

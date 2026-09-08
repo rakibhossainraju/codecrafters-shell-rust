@@ -25,6 +25,12 @@ impl Hinter for EditorHelper {
     }
 }
 
+impl Default for EditorHelper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EditorHelper {
     pub fn new() -> Self {
         EditorHelper {
@@ -120,26 +126,25 @@ impl EditorHelper {
 
         if let Ok(entries) = fs::read_dir(scan_path) {
             for entry in entries.flatten() {
-                if let Ok(file_name) = entry.file_name().into_string() {
-                    if file_name.starts_with(file_prefix) {
-                        let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+                if let Ok(file_name) = entry.file_name().into_string()
+                    && file_name.starts_with(file_prefix)
+                {
+                    let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
 
-                        // ADD THE SLASH TO THE DISPLAY NAME IF IT'S A DIR
-                        let display_name =
-                            format!("{}{}", file_name, if is_dir { "/" } else { "" });
+                    // ADD THE SLASH TO THE DISPLAY NAME IF IT'S A DIR
+                    let display_name = format!("{}{}", file_name, if is_dir { "/" } else { "" });
 
-                        let replacement = format!(
-                            "{}{}{}",
-                            dir_to_scan,
-                            file_name,
-                            if is_dir { "/" } else { " " }
-                        );
+                    let replacement = format!(
+                        "{}{}{}",
+                        dir_to_scan,
+                        file_name,
+                        if is_dir { "/" } else { " " }
+                    );
 
-                        candidates.push(Pair {
-                            display: display_name,
-                            replacement,
-                        });
-                    }
+                    candidates.push(Pair {
+                        display: display_name,
+                        replacement,
+                    });
                 }
             }
         }

@@ -74,10 +74,38 @@ fn or_operator_is_not_implemented_and_silently_drops_the_second_command() {
     assert_eq!(stdout(&out), "first\n");
 }
 
-/// Same gap for background `&` -- no actual backgrounding happens.
+/// Unlike `&&`/`||` above, `&` is implemented: it backgrounds the command
+/// before it and continues on to the rest of the line. Backgrounding a
+/// builtin spawns a real re-exec'd child process to run it (see
+/// `executors::background::spawn_builtin_job`), so its output genuinely
+/// races with the foreground command that follows -- unlike when builtins
+/// ran in-process and synchronously, "first" vs "second" is no longer
+/// deterministically ordered. What *is* guaranteed: the job announcement
+/// (`[1] <pid>`) prints synchronously, before the shell moves on to
+/// `echo second`, and both commands' output eventually shows up.
 #[test]
-fn background_operator_is_not_implemented_and_silently_drops_the_second_command() {
+fn background_operator_runs_the_preceding_command_then_continues() {
     let sandbox = Sandbox::new();
     let out = sandbox.run("echo first & echo second\n");
-    assert_eq!(stdout(&out), "first\n");
+    let captured = stdout(&out);
+    let mut lines: Vec<&str> = captured.lines().collect();
+
+    let announcement_pos = lines
+        .iter()
+        .position(|line| line.starts_with("[1] "))
+        .expect("background job announcement should be printed");
+    let second_pos = lines
+        .iter()
+        .position(|&line| line == "second")
+        .expect("foreground command's output should be printed");
+    assert!(
+        announcement_pos < second_pos,
+        "job announcement must print before the shell moves on to the foreground command"
+    );
+
+    lines.remove(announcement_pos);
+    lines.sort_unstable();
+    assert_eq!(lines, vec!["first", "second"]);
+
+    assert_eq!(stderr(&out), "");
 }

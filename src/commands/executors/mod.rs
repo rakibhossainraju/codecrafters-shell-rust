@@ -1,3 +1,4 @@
+pub mod background;
 pub mod cd;
 pub mod clear;
 pub mod command_type;

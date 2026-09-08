@@ -6,7 +6,7 @@ use crate::commands::{
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
 use crate::state::ShellState;
-use crate::utils::redirection::{IoStreams, ResolvedRedirections};
+use crate::utils::redirection::{IoStreams, ResolvedReDirections};
 use std::io::{Read, Write};
 
 pub enum Command {
@@ -28,7 +28,7 @@ impl Command {
         let cmd_name = parsed_cmd.cmd.clone();
         ExternalCommand::try_resolve(parsed_cmd)
             .map(Command::External)
-            .ok_or_else(|| ShellError::CommandNotFound(cmd_name))
+            .ok_or(ShellError::CommandNotFound(cmd_name))
     }
 
     pub fn execute<'a>(
@@ -39,7 +39,7 @@ impl Command {
     ) -> Result<()> {
         match self {
             Command::Builtin(builtin, parsed_cmd) => {
-                let resolved = ResolvedRedirections::resolve(parsed_cmd)?;
+                let resolved = ResolvedReDirections::resolve(parsed_cmd)?;
 
                 let mut stdin: Box<dyn Read> = match resolved.stdin {
                     Some(file) => Box::new(file),
@@ -64,7 +64,7 @@ impl Command {
                     BuiltinCommands::Type => {
                         command_type::execute_type(parsed_cmd, &mut stdin, &mut stdout)
                     }
-                    BuiltinCommands::Jobs => jobs::execute_jobs(&mut stdin, &mut stdout),
+                    BuiltinCommands::Jobs => jobs::execute_jobs(&mut stdin, &mut stdout, state),
                     BuiltinCommands::Exit => Ok(()),
                 }
             }

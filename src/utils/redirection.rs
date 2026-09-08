@@ -1,12 +1,18 @@
+use strum::{Display, EnumString};
+
 use crate::error::{Result, ShellError};
 use crate::parser::ParsedCommand;
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Display)]
 pub enum Descriptor {
+    #[strum(to_string = "")]
     Stdin,
+    #[strum(to_string = "")]
     Stdout,
+    #[strum(to_string = "2")]
     Stderr,
 }
 
@@ -21,10 +27,13 @@ impl From<char> for Descriptor {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Display)]
 pub enum RedirectionType {
+    #[strum(to_string = "<")]
     Input,
+    #[strum(to_string = ">")]
     Output,
+    #[strum(to_string = ">>")]
     Append,
 }
 
@@ -35,13 +44,23 @@ pub struct Redirection {
     pub redirection_type: RedirectionType,
 }
 
-pub struct ResolvedRedirections {
+impl fmt::Display for Redirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Map the enum variants to their shell symbols
+        let symbol = self.redirection_type.to_string();
+
+        // Prints "2>", ">", or "<" based on the descriptor and type
+        write!(f, "{}{}{}", self.descriptor, symbol, self.file)
+    }
+}
+
+pub struct ResolvedReDirections {
     pub stdout: Option<File>,
     pub stderr: Option<File>,
     pub stdin: Option<File>,
 }
 
-impl ResolvedRedirections {
+impl ResolvedReDirections {
     pub fn resolve(parsed_cmd: &ParsedCommand) -> Result<Self> {
         let mut stdout = None;
         let mut stderr = None;
@@ -55,7 +74,6 @@ impl ResolvedRedirections {
                     .truncate(true)
                     .open(&redirect.file),
                 RedirectionType::Append => OpenOptions::new()
-                    .write(true)
                     .create(true)
                     .append(true)
                     .open(&redirect.file),
@@ -88,7 +106,7 @@ pub struct IoStreams {
 }
 
 impl IoStreams {
-    pub fn from_resolved(resolved: ResolvedRedirections) -> Self {
+    pub fn from_resolved(resolved: ResolvedReDirections) -> Self {
         let stdout: Box<dyn Write> = match resolved.stdout {
             Some(f) => Box::new(f),
             None => Box::new(io::stdout()),
@@ -129,7 +147,7 @@ mod tests {
         let path = dir.path().join("out.txt");
         std::fs::write(&path, "old content that should disappear").unwrap();
 
-        let resolved = ResolvedRedirections::resolve(&cmd_with(vec![Redirection {
+        let resolved = ResolvedReDirections::resolve(&cmd_with(vec![Redirection {
             descriptor: Descriptor::Stdout,
             file: path.to_str().unwrap().to_string(),
             redirection_type: RedirectionType::Output,
@@ -149,7 +167,7 @@ mod tests {
         let path = dir.path().join("out.txt");
         std::fs::write(&path, "first-").unwrap();
 
-        let resolved = ResolvedRedirections::resolve(&cmd_with(vec![Redirection {
+        let resolved = ResolvedReDirections::resolve(&cmd_with(vec![Redirection {
             descriptor: Descriptor::Stdout,
             file: path.to_str().unwrap().to_string(),
             redirection_type: RedirectionType::Append,
@@ -169,7 +187,7 @@ mod tests {
         let path = dir.path().join("in.txt");
         std::fs::write(&path, "hello from file").unwrap();
 
-        let resolved = ResolvedRedirections::resolve(&cmd_with(vec![Redirection {
+        let resolved = ResolvedReDirections::resolve(&cmd_with(vec![Redirection {
             descriptor: Descriptor::Stdin,
             file: path.to_str().unwrap().to_string(),
             redirection_type: RedirectionType::Input,
@@ -187,7 +205,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("does-not-exist.txt");
 
-        let result = ResolvedRedirections::resolve(&cmd_with(vec![Redirection {
+        let result = ResolvedReDirections::resolve(&cmd_with(vec![Redirection {
             descriptor: Descriptor::Stdin,
             file: path.to_str().unwrap().to_string(),
             redirection_type: RedirectionType::Input,
@@ -202,7 +220,7 @@ mod tests {
         let out_path = dir.path().join("out.txt");
         let err_path = dir.path().join("err.txt");
 
-        let resolved = ResolvedRedirections::resolve(&cmd_with(vec![
+        let resolved = ResolvedReDirections::resolve(&cmd_with(vec![
             Redirection {
                 descriptor: Descriptor::Stdout,
                 file: out_path.to_str().unwrap().to_string(),
@@ -223,7 +241,7 @@ mod tests {
 
     #[test]
     fn no_redirects_resolves_to_all_none() {
-        let resolved = ResolvedRedirections::resolve(&cmd_with(vec![])).unwrap();
+        let resolved = ResolvedReDirections::resolve(&cmd_with(vec![])).unwrap();
         assert!(resolved.stdout.is_none());
         assert!(resolved.stderr.is_none());
         assert!(resolved.stdin.is_none());

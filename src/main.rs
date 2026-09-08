@@ -7,7 +7,15 @@ use rustyline::error::ReadlineError;
 use std::env;
 
 fn main() {
-    let mut editor = TerminalEditor::new();
+    let argv: Vec<String> = env::args().collect();
+    if let Some(marker_pos) = argv
+        .iter()
+        .position(|arg| arg == commands::INTERNAL_BUILTIN_MARKER)
+    {
+        commands::run_internal_builtin(&argv[marker_pos + 1..]);
+    }
+
+    let mut editor = TerminalEditor::default();
     let mut state = ShellState::new();
 
     let history_file = env::var("HISTFILE").ok();
@@ -48,6 +56,7 @@ fn main() {
                 continue;
             }
         };
+        // println!("Tokens: {:#?}", tokens);
         let ast = match Parser::parser(tokens) {
             Ok(ast_note) => ast_note,
             Err(e) => {
@@ -55,16 +64,18 @@ fn main() {
                 continue;
             }
         };
+        // println!("AST: {:#?}", ast);
         match commands::execute_ast(ast, &mut state) {
             Ok(_) => (),
             Err(ShellError::ExitOut) => break,
             Err(e) => eprintln!("{}", e),
         }
+        state.jobs.print_done_job();
     }
 
-    if let Some(ref path) = history_file {
-        if let Err(e) = state.history.write_history(path) {
-            eprintln!("{}", e);
-        }
+    if let Some(ref path) = history_file
+        && let Err(e) = state.history.write_history(path)
+    {
+        eprintln!("{}", e);
     }
 }

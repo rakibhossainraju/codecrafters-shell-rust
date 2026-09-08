@@ -2,6 +2,8 @@ use rustyline::error::ReadlineError;
 use std::io;
 use thiserror::Error;
 
+use crate::parser::Token;
+
 #[derive(Debug, Error)]
 pub enum ShellError {
     #[error("{0}: not found")]
@@ -46,6 +48,9 @@ pub enum ShellError {
 
     #[error("could not write to history file: {0}")]
     HistoryWriteError(io::Error),
+
+    #[error("syntax error near unexpected token `{0}`")]
+    ParserSyntaxError(Token),
 }
 
 pub type Result<T> = std::result::Result<T, ShellError>;
