@@ -5,6 +5,7 @@ mod external;
 
 use crate::commands::executors::background::execute_background;
 use crate::commands::executors::pipeline::execute_pipeline;
+use crate::commands::executors::pipeline_transfer::ChainOperator;
 use crate::error::{Result, ShellError};
 use crate::parser::{ASTNode, ASTNodes, ParsedCommand};
 use crate::state::ShellState;
@@ -120,23 +121,22 @@ pub fn run_internal_pipeline(args: &[String]) -> ! {
 /// case. See `executors::background::spawn_and_chain_job`.
 pub const INTERNAL_AND_CHAIN_MARKER: &str = "--__shell-internal-run-and-chain";
 
-/// Entry point for a re-exec'd child spawned by `spawn_and_chain_job`.
+/// Entry point for a re-exec'd child spawned by `spawn_and_or_chain_job`.
 /// `args` is a single element: the chain's leaves (each a command or a
-/// whole pipeline), encoded by
-/// `executors::pipeline_transfer::encode_and_chain`. Runs them in order,
-/// short-circuiting on the first failure, via the same `ast_executor` the
-/// foreground REPL loop uses — so the short-circuit rule only exists in one
-/// place.
+/// whole pipeline) with their operators, encoded by
+/// `executors::pipeline_transfer::encode_and_or_chain`. Runs them in order,
+/// short-circuiting on && / || conditions, via the same `ast_executor` the
+/// foreground REPL loop uses.
 pub fn run_internal_and_chain(args: &[String]) -> ! {
-    use crate::commands::executors::pipeline_transfer::decode_and_chain;
+    use crate::commands::executors::pipeline_transfer::decode_and_or_chain;
 
     let mut state = ShellState::new();
     if let Ok(histfile) = std::env::var("HISTFILE") {
         let _ = state.history.load_history(&histfile);
     }
 
-    let exit_code = match args.first().map(|payload| decode_and_chain(payload)) {
-        Some(Ok(chains)) => run_and_chain(chains, &mut state),
+    let exit_code = match args.first().map(|payload| decode_and_or_chain(payload)) {
+        Some(Ok(chains)) => run_and_or_chain(chains, &mut state),
         Some(Err(e)) => {
             eprintln!("{}", e);
             1
@@ -147,29 +147,36 @@ pub fn run_internal_and_chain(args: &[String]) -> ! {
     std::process::exit(exit_code);
 }
 
-/// Runs each leaf of a decoded `&&` chain in order via `ast_executor`,
-/// stopping at the first failure. `ast_executor` only ever returns `Err` for
-/// `ShellError::ExitOut` (see its doc comment) -- if a leaf is literally
-/// `exit`, that should end *this* re-exec'd subshell, not propagate
-/// anywhere, so it's treated as a clean stop here rather than re-raised.
-fn run_and_chain(chains: Vec<Vec<ParsedCommand>>, state: &mut ShellState) -> i32 {
+/// Runs each leaf of a decoded `&&`/`||` chain in order via `ast_executor`,
+/// respecting short-circuiting rules based on the preceding operator.
+fn run_and_or_chain(
+    chains: Vec<(
+        Option<ChainOperator>,
+        Vec<ParsedCommand>,
+    )>,
+    state: &mut ShellState,
+) -> i32 {
     let mut succeeded = true;
-    for cmds in chains {
-        if !succeeded {
-            break;
+    for (op, cmds) in chains {
+        let should_run = match op {
+            None => true,
+            Some(ChainOperator::And) => succeeded,
+            Some(ChainOperator::Or) => !succeeded,
+        };
+        if should_run {
+            let node = match cmds.len() {
+                1 => ASTNode::Simple(cmds.into_iter().next().expect("len checked above")),
+                _ => ASTNode::Pipeline(cmds),
+            };
+            succeeded = match ast_executor(node, state) {
+                Ok(ok) => ok,
+                Err(ShellError::ExitOut) => return 0,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    false
+                }
+            };
         }
-        let node = match cmds.len() {
-            1 => ASTNode::Simple(cmds.into_iter().next().expect("len checked above")),
-            _ => ASTNode::Pipeline(cmds),
-        };
-        succeeded = match ast_executor(node, state) {
-            Ok(ok) => ok,
-            Err(ShellError::ExitOut) => return 0,
-            Err(e) => {
-                eprintln!("{}", e);
-                false
-            }
-        };
     }
     i32::from(!succeeded)
 }
@@ -188,8 +195,8 @@ pub fn execute_ast(ast: ASTNodes, state: &mut ShellState) -> Result<()> {
 /// other execution failure (command not found, a builtin's own error, a
 /// nonzero exit code) is printed immediately, exactly as before this
 /// function returned `Result<bool>`, and folded into `Ok(false)` rather than
-/// aborting. That's the part `&&` actually needs: the left side failing
-/// has to be visible (printed, and skip the right side) without also
+/// aborting. That's the part `&&`/`||` actually needs: the left side failing
+/// has to be visible (printed, and short-circuit the right side) without also
 /// preventing an unrelated sibling item on the same line from running.
 fn ast_executor(ast_node: ASTNode, state: &mut ShellState) -> Result<bool> {
     match ast_node {
@@ -229,6 +236,13 @@ fn ast_executor(ast_node: ASTNode, state: &mut ShellState) -> Result<bool> {
                 ast_executor(*right, state)
             } else {
                 Ok(false)
+            }
+        }
+        ASTNode::Or(left, right) => {
+            if !ast_executor(*left, state)? {
+                ast_executor(*right, state)
+            } else {
+                Ok(true)
             }
         }
     }

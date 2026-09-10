@@ -11,7 +11,7 @@ use crate::{
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command as OsCommand, Stdio};
 
-use super::pipeline_transfer::{encode_and_chain, encode_pipeline};
+use super::pipeline_transfer::{ChainOperator, encode_and_or_chain, encode_pipeline};
 
 pub fn execute_background(ast: ASTNode, state: &mut ShellState) -> Result<()> {
     match ast {
@@ -53,7 +53,12 @@ pub fn execute_background(ast: ASTNode, state: &mut ShellState) -> Result<()> {
         }
         ASTNode::And(left, right) => {
             let cmd_str = format!("{} && {}", describe_ast(&left), describe_ast(&right));
-            let child = spawn_and_chain_job(ASTNode::And(left, right))?;
+            let child = spawn_and_or_chain_job(ASTNode::And(left, right))?;
+            state.jobs.push_job(child, cmd_str);
+        }
+        ASTNode::Or(left, right) => {
+            let cmd_str = format!("{} || {}", describe_ast(&left), describe_ast(&right));
+            let child = spawn_and_or_chain_job(ASTNode::Or(left, right))?;
             state.jobs.push_job(child, cmd_str);
         }
     }
@@ -147,10 +152,10 @@ fn spawn_pipeline_job(cmds: &[ParsedCommand]) -> Result<Child> {
     })
 }
 
-/// Human-readable rendering of an `&&` chain (or one of its leaves), for the
-/// `jobs` listing's command column -- e.g. `"echo a | tr a-z A-Z && echo b"`.
+/// Human-readable rendering of an `&&`/`||` chain (or one of its leaves), for
+/// the `jobs` listing's command column -- e.g. `"echo a && echo b || echo c"`.
 /// Never called on a `Background` node: `parse_and_or`'s leaves are always
-/// `Simple`/`Pipeline`, and `Background` can't nest inside `And` either
+/// `Simple`/`Pipeline`, and `Background` can't nest inside `And`/`Or` either
 /// (mirrors the same guarantee `execute_background`'s own `Background(_)`
 /// arm already relies on).
 fn describe_ast(node: &ASTNode) -> String {
@@ -162,64 +167,58 @@ fn describe_ast(node: &ASTNode) -> String {
             .collect::<Vec<_>>()
             .join(" | "),
         ASTNode::And(left, right) => format!("{} && {}", describe_ast(left), describe_ast(right)),
-        ASTNode::Background(_) => unreachable!("And never nests Background"),
+        ASTNode::Or(left, right) => format!("{} || {}", describe_ast(left), describe_ast(right)),
+        ASTNode::Background(_) => unreachable!("And/Or never nests Background"),
     }
 }
 
-/// Unwraps a left-leaning `And` tree (`((a && b) && c)`, which is the only
-/// shape `parse_and_or` ever builds) into its leaves in left-to-right order
-/// (`[a, b, c]`). Written to handle arbitrary nesting on either side, not
-/// just that specific shape, so it keeps working if the parser's grammar
-/// ever grows right-nesting too.
-fn flatten_and_chain(node: ASTNode) -> Vec<ASTNode> {
+/// Unwraps a left-leaning `And`/`Or` tree into its leaves in left-to-right
+/// order along with each stage's preceding operator (`None` for the first).
+fn flatten_and_or_chain(
+    node: ASTNode,
+    leading_op: Option<ChainOperator>,
+    out: &mut Vec<(Option<ChainOperator>, Vec<ParsedCommand>)>,
+) {
     match node {
         ASTNode::And(left, right) => {
-            let mut leaves = flatten_and_chain(*left);
-            leaves.extend(flatten_and_chain(*right));
-            leaves
+            flatten_and_or_chain(*left, leading_op, out);
+            flatten_and_or_chain(*right, Some(ChainOperator::And), out);
         }
-        leaf => vec![leaf],
+        ASTNode::Or(left, right) => {
+            flatten_and_or_chain(*left, leading_op, out);
+            flatten_and_or_chain(*right, Some(ChainOperator::Or), out);
+        }
+        ASTNode::Simple(cmd) => {
+            out.push((leading_op, vec![cmd]));
+        }
+        ASTNode::Pipeline(cmds) => {
+            out.push((leading_op, cmds));
+        }
+        ASTNode::Background(_) => unreachable!("parse_and_or never nests Background"),
     }
 }
 
-/// Backgrounds a whole `&&` chain (`a && b &`) the same way a pipeline is
-/// backgrounded: flatten it into its leaves, re-exec this shell binary as a
-/// child process told to run that whole chain (via
-/// `commands::run_internal_and_chain`, which short-circuits using the same
-/// `ast_executor` the foreground REPL uses) and exit, and track the one
-/// resulting child as one job.
-///
-/// Like `spawn_pipeline_job`, no redirects are resolved here -- each leaf's
-/// own redirects (and each pipeline leaf's per-stage redirects) travel
-/// inside the encoded payload and are resolved inside the child by the
-/// exact same code that already handles them for a foreground command.
-fn spawn_and_chain_job(node: ASTNode) -> Result<Child> {
-    let leaves = flatten_and_chain(node);
-    let chains: Vec<Vec<ParsedCommand>> = leaves
-        .into_iter()
-        .map(|leaf| match leaf {
-            ASTNode::Simple(cmd) => vec![cmd],
-            ASTNode::Pipeline(cmds) => cmds,
-            other => unreachable!(
-                "parse_and_or only ever nests Simple/Pipeline leaves under And, got {:?}",
-                other
-            ),
-        })
-        .collect();
+/// Backgrounds a whole `&&`/`||` chain (`a && b &`, `a || b &`) the same way
+/// a pipeline is backgrounded: flatten it into its leaves with operators,
+/// re-exec this shell binary as a child process told to run that whole chain
+/// and exit, and track the one resulting child as one job.
+fn spawn_and_or_chain_job(node: ASTNode) -> Result<Child> {
+    let mut chains = Vec::new();
+    flatten_and_or_chain(node, None, &mut chains);
 
     let current_exe = std::env::current_exe().map_err(|source| ShellError::ExecutionError {
-        command: "&&".to_string(),
+        command: "job".to_string(),
         source,
     })?;
 
     let mut cmd = OsCommand::new(current_exe);
-    cmd.arg0("&&");
+    cmd.arg0("job");
     cmd.arg(INTERNAL_AND_CHAIN_MARKER);
-    cmd.arg(encode_and_chain(&chains));
+    cmd.arg(encode_and_or_chain(&chains));
     cmd.stdin(Stdio::null());
 
     cmd.spawn().map_err(|source| ShellError::ExecutionError {
-        command: "&&".to_string(),
+        command: "job".to_string(),
         source,
     })
 }

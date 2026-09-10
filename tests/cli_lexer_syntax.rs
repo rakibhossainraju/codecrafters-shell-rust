@@ -92,12 +92,69 @@ fn and_chains_more_than_two_commands() {
     assert_eq!(stdout(&out), "a\nb\nc\n");
 }
 
-/// Same gap for `||`.
 #[test]
-fn or_operator_is_not_implemented_and_silently_drops_the_second_command() {
+fn or_skips_the_right_side_when_the_left_side_succeeds() {
     let sandbox = Sandbox::new();
     let out = sandbox.run("echo first || echo second\n");
     assert_eq!(stdout(&out), "first\n");
+    assert_eq!(stderr(&out), "");
+}
+
+#[test]
+fn or_runs_the_right_side_when_the_left_side_exits_nonzero() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("failer || echo second\n");
+    assert_eq!(stdout(&out), "second\n");
+    assert_eq!(stderr(&out), "");
+}
+
+#[test]
+fn or_runs_the_right_side_when_the_left_side_is_not_found() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("nosuchcmd || echo second\necho still-alive\n");
+    assert!(stderr(&out).contains("nosuchcmd"));
+    assert_eq!(stdout(&out), "second\nstill-alive\n");
+}
+
+#[test]
+fn or_chains_more_than_two_commands() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("failer || failer || echo c\n");
+    assert_eq!(stdout(&out), "c\n");
+}
+
+#[test]
+fn mixed_and_or_is_left_associative_and_runs_in_order() {
+    let sandbox = Sandbox::new();
+    // (echo a || echo b) && echo c -> a succeeds, b skipped, c runs
+    let out1 = sandbox.run("echo a || echo b && echo c\n");
+    assert_eq!(stdout(&out1), "a\nc\n");
+
+    // (failer && echo b) || echo c -> failer fails, b skipped, c runs
+    let out2 = sandbox.run("failer && echo b || echo c\n");
+    assert_eq!(stdout(&out2), "c\n");
+
+    // (echo a && failer) || echo c -> a runs, failer fails, c runs
+    let out3 = sandbox.run("echo a && failer || echo c\n");
+    assert_eq!(stdout(&out3), "a\nc\n");
+
+    // (failer || echo b) && echo c -> failer fails, b runs, c runs
+    let out4 = sandbox.run("failer || echo b && echo c\n");
+    assert_eq!(stdout(&out4), "b\nc\n");
+}
+
+#[test]
+fn or_chains_whole_pipelines_not_just_simple_commands() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("argecho hi | upper || echo fallback\n");
+    assert_eq!(stdout(&out), "HI\n");
+}
+
+#[test]
+fn trailing_or_is_a_syntax_error() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("echo first ||\n");
+    assert!(stderr(&out).contains("unexpected"));
 }
 
 /// Unlike `&&`/`||` above, `&` is implemented: it backgrounds the command

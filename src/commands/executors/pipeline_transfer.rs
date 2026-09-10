@@ -75,31 +75,70 @@ pub fn decode_pipeline(data: &str) -> Result<Vec<ParsedCommand>> {
     Ok(cmds)
 }
 
-/// A `&&` chain (`a && b | c && d`) always flattens to a left-to-right list
-/// of leaves, each either a single command or a whole pipeline -- see
-/// `executors::background::flatten_and_chain`. Each leaf is just another
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChainOperator {
+    And,
+    Or,
+}
+
+/// A chain (`a && b | c || d`) flattens to a left-to-right list of leaves
+/// along with their joining operator (the first stage has no preceding operator)
+/// -- see `executors::background::flatten_and_or_chain`. Each leaf is a
 /// `Vec<ParsedCommand>` (one element for a plain command, several for a
-/// pipeline), so this reuses `encode_pipeline`/`decode_pipeline` per leaf,
-/// with one more length-prefixed layer wrapped around the whole list.
-pub fn encode_and_chain(chains: &[Vec<ParsedCommand>]) -> String {
+/// pipeline), so this reuses `encode_pipeline`/`decode_pipeline` per leaf.
+pub fn encode_and_or_chain(chains: &[(Option<ChainOperator>, Vec<ParsedCommand>)]) -> String {
     let mut out = String::new();
     write_usize(&mut out, chains.len());
-    for cmds in chains {
+    for (op, cmds) in chains {
+        let op_code = match op {
+            None => "0",
+            Some(ChainOperator::And) => "&",
+            Some(ChainOperator::Or) => "|",
+        };
+        write_str(&mut out, op_code);
         write_str(&mut out, &encode_pipeline(cmds));
     }
     out
 }
 
-pub fn decode_and_chain(data: &str) -> Result<Vec<Vec<ParsedCommand>>> {
+pub fn decode_and_or_chain(data: &str) -> Result<Vec<(Option<ChainOperator>, Vec<ParsedCommand>)>> {
     let mut pos = 0;
     let chain_count = read_usize(data, &mut pos).ok_or_else(malformed)?;
 
     let mut chains = Vec::with_capacity(chain_count);
     for _ in 0..chain_count {
+        let op_code = read_str(data, &mut pos).ok_or_else(malformed)?;
+        let op = match op_code.as_str() {
+            "0" => None,
+            "&" => Some(ChainOperator::And),
+            "|" => Some(ChainOperator::Or),
+            _ => return Err(malformed()),
+        };
         let payload = read_str(data, &mut pos).ok_or_else(malformed)?;
-        chains.push(decode_pipeline(&payload)?);
+        chains.push((op, decode_pipeline(&payload)?));
     }
     Ok(chains)
+}
+
+pub fn encode_and_chain(chains: &[Vec<ParsedCommand>]) -> String {
+    let tagged: Vec<(Option<ChainOperator>, Vec<ParsedCommand>)> = chains
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            let op = if i == 0 {
+                None
+            } else {
+                Some(ChainOperator::And)
+            };
+            (op, c.clone())
+        })
+        .collect();
+    encode_and_or_chain(&tagged)
+}
+
+pub fn decode_and_chain(data: &str) -> Result<Vec<Vec<ParsedCommand>>> {
+    let decoded = decode_and_or_chain(data)?;
+    Ok(decoded.into_iter().map(|(_, cmds)| cmds).collect())
 }
 
 fn malformed() -> ShellError {

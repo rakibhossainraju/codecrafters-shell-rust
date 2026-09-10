@@ -181,3 +181,33 @@ fn backgrounding_an_and_chain_handles_a_pipeline_leaf() {
     assert_eq!(sandbox.read_file("up.txt"), "HI\n");
     assert_eq!(sandbox.read_file("done.txt"), "done\n");
 }
+
+#[test]
+fn backgrounding_an_or_chain_skips_the_right_side_on_success() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("echo a > a.txt || echo b > b.txt &\n");
+
+    assert!(stdout(&out).starts_with("[1] "));
+    assert_eq!(sandbox.read_file("a.txt"), "a\n");
+    assert!(!sandbox.file_exists("b.txt"));
+}
+
+#[test]
+fn backgrounding_an_or_chain_runs_the_right_side_on_failure() {
+    let sandbox = Sandbox::new();
+    let out = sandbox.run("failer || echo b > b.txt &\n");
+
+    assert!(stdout(&out).starts_with("[1] "));
+    assert_eq!(sandbox.read_file("b.txt"), "b\n");
+}
+
+#[test]
+fn backgrounding_a_mixed_and_or_chain_respects_left_associativity() {
+    let sandbox = Sandbox::new();
+    // (failer && echo a > a.txt) || echo b > b.txt & -> failer fails, a skipped, b runs
+    let out = sandbox.run("failer && echo a > a.txt || echo b > b.txt &\n");
+
+    assert!(stdout(&out).starts_with("[1] "));
+    assert!(!sandbox.file_exists("a.txt"));
+    assert_eq!(sandbox.read_file("b.txt"), "b\n");
+}
